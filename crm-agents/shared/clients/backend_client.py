@@ -116,6 +116,35 @@ class BackendClient:
             "tokenCount": token_count,
         })
 
+    async def get_conversation_messages(
+        self,
+        conversation_id: str,
+        limit: int = 20,
+    ) -> list[dict]:
+        """
+        Fetch the most recent messages for a conversation.
+
+        The backend returns a Spring Page response:
+          { "success": true, "data": { "content": [...], ... } }
+
+        Returns a list of { role, content } dicts ordered oldest → newest,
+        capped at `limit` entries.
+        """
+        try:
+            data = await self.get(
+                f"/api/v1/conversations/{conversation_id}/messages",
+                params={"page": 0, "size": limit, "sort": "createdAt,asc"},
+            )
+            page_data = data.get("data", data)
+            msgs = page_data.get("content", [])
+            return [
+                {"role": m.get("role", ""), "content": m.get("content", "")}
+                for m in msgs
+                if m.get("content")
+            ]
+        except Exception:
+            return []
+
     async def update_agent_task_status(
         self,
         task_id: str,

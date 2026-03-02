@@ -106,6 +106,101 @@ def _extract_artifact(
 
 # ── A2UI helpers ─────────────────────────────────────────────────────────────
 
+def _extract_text_from_a2ui(content: str) -> str:
+    """
+    Convert an A2UI JSON agent message into a compact plain-text summary
+    suitable for inclusion in Gemini's conversation history.
+
+    This prevents token bloat and makes the history readable to the model.
+    Falls back to the raw content if parsing fails.
+    """
+    try:
+        parsed = json.loads(content)
+    except (json.JSONDecodeError, ValueError):
+        return content[:500]
+
+    if not isinstance(parsed, dict) or "components" not in parsed:
+        return content[:500]
+
+    texts: list[str] = []
+
+    def _collect(components: list) -> None:
+        for comp in components:
+            ctype = comp.get("type", "")
+            props = comp.get("props") or {}
+
+            if ctype in ("text", "markdown") and comp.get("content"):
+                texts.append(str(comp["content"])[:300])
+
+            elif ctype == "section":
+                title = props.get("title", "")
+                if title:
+                    texts.append(f"[{title}]")
+                _collect(comp.get("children") or [])
+
+            elif ctype == "stat_grid":
+                for stat in props.get("stats") or []:
+                    if stat.get("label") and stat.get("value"):
+                        texts.append(f"{stat['label']}: {stat['value']}")
+
+            elif ctype == "kv_table":
+                for row in props.get("rows") or []:
+                    if row.get("key") and row.get("value"):
+                        texts.append(f"{row['key']}: {row['value']}")
+
+            elif ctype == "progress":
+                label = props.get("label", "")
+                value = props.get("value", "")
+                if label:
+                    texts.append(f"{label}: {value}%")
+
+            elif ctype == "contact_chip":
+                parts = [
+                    props.get("name", ""),
+                    props.get("title", ""),
+                    props.get("company", ""),
+                ]
+                summary = " – ".join(p for p in parts if p)
+                if summary:
+                    texts.append(summary)
+
+            # recurse into generic children
+            _collect(comp.get("children") or [])
+
+    _collect(parsed["components"])
+    result = " | ".join(texts[:12])   # cap at 12 snippets to stay concise
+    return result or content[:300]
+
+
+def _build_gemini_history(raw_messages: list[dict]) -> list[dict]:
+    """
+    Convert backend conversation messages → Gemini-compatible history list.
+
+    - user  → role="user"
+    - agent → role="model", content extracted from A2UI JSON to plain text
+    Excludes the last message (current turn) — the caller appends that.
+    """
+    history: list[dict] = []
+    for msg in raw_messages:
+        role = msg.get("role", "")
+        content = msg.get("content", "").strip()
+        if not content:
+            continue
+        if role == "user":
+            history.append({"role": "user", "content": content})
+        elif role in ("agent", "model", "assistant"):
+            history.append({
+                "role": "model",
+                "content": _extract_text_from_a2ui(content),
+            })
+    return history
+
+
+async def _empty_list() -> list:
+    """Async no-op that returns an empty list — used as a gather placeholder."""
+    return []
+
+
 def _ensure_a2ui(text: str) -> str:
     """
     Guarantee the response is valid A2UI v0.8 JSON.
@@ -223,7 +318,7 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
             # Low/medium — use redacted version but continue
             intent = input_check.get("redacted_content") or intent
 
-        # ── 3. Fetch context + memories in parallel ────────────────────────
+        # ── 3. Fetch context + memories + conversation history in parallel ──
         sub_metadata: dict[str, Any] = {
             "session_id": session_id,
             "orchestrator_task_id": task.task_id,
@@ -233,7 +328,12 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
             **task.metadata,
         }
 
-        context_result, memory_result = await asyncio.gather(
+        # conversationId from UI payload enables history fetch
+        conv_id_for_history: str | None = (
+            (task.metadata.get("payload") or {}).get("conversationId")
+        )
+
+        context_result, memory_result, raw_history = await asyncio.gather(
             task_manager.delegate(
                 "crm-context-agent",
                 session_id,
@@ -246,6 +346,13 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                 intent,
                 {**sub_metadata, "skill_id": "semantic_search"},
             ),
+            # Fetch recent conversation turns for history grounding.
+            # We cap at 20 messages (10 user + 10 agent) to stay within
+            # a reasonable token budget while giving the model enough
+            # context to resolve pronouns and entity references.
+            backend.get_conversation_messages(conv_id_for_history, limit=20)
+            if conv_id_for_history
+            else _empty_list(),
             return_exceptions=True,
         )
 
@@ -253,8 +360,19 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
         memory_data = _extract_artifact(memory_result, "semantic_search_results")
         memory_items: list[dict] = memory_data.get("results", [])
 
+        # Build conversation history for Gemini — exclude the current user
+        # turn (it's passed separately as `user_message`).
+        if isinstance(raw_history, list) and raw_history:
+            # Drop the last message if it's the user's current turn
+            # (the UI already saved it before submitting the task)
+            history_msgs = raw_history[:-1] if raw_history[-1].get("role") == "user" else raw_history
+            conversation_history = _build_gemini_history(history_msgs)
+        else:
+            conversation_history = []
+
         span.set_attribute("context.fields_count", len(context_data))
         span.set_attribute("memory.results_count", len(memory_items))
+        span.set_attribute("history.turns_count", len(conversation_history))
 
         # ── 4. Build context / memory snippets for the prompt ─────────────
         context_snippet = json.dumps(context_data, indent=2) if context_data else ""
@@ -273,6 +391,11 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                 memory_lines.append(f"- {str(text)[:300]}")
         memory_snippet = "\n".join(memory_lines)
 
+        logger.debug(
+            "Context ready: context_fields=%d memory_items=%d history_turns=%d",
+            len(context_data), len(memory_items), len(conversation_history),
+        )
+
         # ── 5. LLM: generate CRM response ─────────────────────────────────
         try:
             llm = get_gemini_client()
@@ -280,6 +403,7 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                 user_message=intent,
                 context_snippet=context_snippet,
                 memory_snippet=memory_snippet,
+                conversation_history=conversation_history,
             )
         except ValueError as cfg_err:
             # API key not configured — return a helpful error artifact
