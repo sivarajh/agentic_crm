@@ -1,0 +1,119 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-ui-config
+  namespace: crm-ui
+data:
+  NGINX_BACKEND_HOST: crm-backend.crm-platform.svc.cluster.local
+  NGINX_BACKEND_PORT: "8080"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crm-ui
+  namespace: crm-ui
+  labels:
+    app: crm-ui
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: crm-ui
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: crm-ui
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101    # nginx user
+      containers:
+        - name: crm-ui
+          image: ghcr.io/your-org/crm-ui:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          securityContext:
+            readOnlyRootFilesystem: false   # nginx needs to write to /var/cache/nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crm-ui
+  namespace: crm-ui
+spec:
+  selector:
+    app: crm-ui
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: crm-ui-hpa
+  namespace: crm-ui
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: crm-ui
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: crm-ui-ingress
+  namespace: crm-ui
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: crm.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: crm-ui
+                port:
+                  number: 80

@@ -1,0 +1,39 @@
+# crm-ui local development — connects to shared crm-net
+# Start infra first: cd ../crm-infra && docker compose up -d
+
+services:
+  crm-ui:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: crm-ui:local
+    container_name: crm-ui
+    ports:
+      - "3090:80"
+    environment:
+      # nginx proxies /api/* to crm-backend — hostname from crm-net
+      - NGINX_BACKEND_HOST=crm-backend
+      - NGINX_BACKEND_PORT=8080
+    depends_on:
+      - crm-backend-check
+    networks:
+      - crm-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Lightweight probe to verify crm-backend is reachable before starting UI
+  crm-backend-check:
+    image: curlimages/curl:latest
+    command: >
+      sh -c "until curl -sf http://crm-backend:8080/actuator/health; do
+        echo 'Waiting for crm-backend...'; sleep 5; done; echo 'crm-backend ready'"
+    networks:
+      - crm-net
+
+networks:
+  crm-net:
+    external: true
