@@ -1,0 +1,60 @@
+# ── Secrets ───────────────────────────────────────────────────────────────────
+.env
+*.env
+!*.env.example
+*.secret
+*.credentials
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+
+# ── Node / React / Vite ───────────────────────────────────────────────────────
+node_modules/
+crm-ui/dist/
+.npm
+*.tsbuildinfo
+
+# ── Java / Maven ──────────────────────────────────────────────────────────────
+crm-backend/target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+hs_err_pid*
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+*.log
+docker-volumes/
+
+# ── IDE / Editor ──────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
