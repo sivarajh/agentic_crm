@@ -1,0 +1,112 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-guardrails-config
+  namespace: crm-agents
+data:
+  SERVICE_NAME: crm-guardrails
+  PORT: "8004"
+  BACKEND_URL: http://crm-backend.crm-platform.svc.cluster.local:8080
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.crm-observability.svc.cluster.local:4317
+  GUARDRAILS_PII_DETECTION_ENABLED: "true"
+  GUARDRAILS_INJECTION_DETECTION_ENABLED: "true"
+  GUARDRAILS_TOXICITY_DETECTION_ENABLED: "true"
+  GUARDRAILS_OUTPUT_VALIDATION_ENABLED: "true"
+  LOG_LEVEL: INFO
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crm-guardrails
+  namespace: crm-agents
+  labels:
+    app: crm-guardrails
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: crm-guardrails
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: crm-guardrails
+    spec:
+      serviceAccountName: crm-agents
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: crm-guardrails
+          image: ghcr.io/your-org/crm-guardrails:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8004
+          envFrom:
+            - configMapRef:
+                name: crm-guardrails-config
+          resources:
+            requests:
+              cpu: 300m
+              memory: 512Mi
+            limits:
+              cpu: 1200m
+              memory: 2Gi   # Presidio NLP models need more RAM
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 30     # Presidio model loading takes longer
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8004
+            initialDelaySeconds: 60
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crm-guardrails
+  namespace: crm-agents
+spec:
+  selector:
+    app: crm-guardrails
+  ports:
+    - name: http
+      port: 8004
+      targetPort: 8004
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: crm-guardrails-hpa
+  namespace: crm-agents
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: crm-guardrails
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75

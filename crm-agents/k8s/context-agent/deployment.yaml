@@ -1,0 +1,112 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-context-agent-config
+  namespace: crm-agents
+data:
+  SERVICE_NAME: crm-context-agent
+  PORT: "8003"
+  BACKEND_URL: http://crm-backend.crm-platform.svc.cluster.local:8080
+  REDIS_HOST: redis.crm-system.svc.cluster.local
+  REDIS_PORT: "6379"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.crm-observability.svc.cluster.local:4317
+  LOG_LEVEL: INFO
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: crm-context-agent
+  namespace: crm-agents
+  labels:
+    app: crm-context-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: crm-context-agent
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  template:
+    metadata:
+      labels:
+        app: crm-context-agent
+    spec:
+      serviceAccountName: crm-agents
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: crm-context-agent
+          image: ghcr.io/your-org/crm-context-agent:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8003
+          envFrom:
+            - configMapRef:
+                name: crm-context-agent-config
+            - secretRef:
+                name: crm-orchestrator-secret
+          resources:
+            requests:
+              cpu: 150m
+              memory: 256Mi
+            limits:
+              cpu: 600m
+              memory: 768Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 30
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: crm-context-agent
+  namespace: crm-agents
+spec:
+  selector:
+    app: crm-context-agent
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: crm-context-agent-hpa
+  namespace: crm-agents
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: crm-context-agent
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75

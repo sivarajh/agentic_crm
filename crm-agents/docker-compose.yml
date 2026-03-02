@@ -1,0 +1,103 @@
+networks:
+  crm-net:
+    external: true
+
+services:
+  crm-orchestrator:
+    build:
+      context: .
+      dockerfile: orchestrator/Dockerfile
+    container_name: crm-orchestrator
+    environment:
+      BACKEND_URL: http://crm-backend:8080
+      MEMORY_AGENT_URL: http://crm-memory-agent:8002
+      CONTEXT_AGENT_URL: http://crm-context-agent:8003
+      GUARDRAILS_URL: http://crm-guardrails:8004
+      REDIS_HOST: crm-redis
+      REDIS_PORT: 6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
+      GOOGLE_CLOUD_PROJECT: ${GCP_PROJECT:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      ENVIRONMENT: local
+    ports:
+      - "8001:8001"
+    networks: [crm-net]
+    healthcheck:
+      # python:3.12-slim has no curl/wget; use Python's built-in urllib
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  crm-memory-agent:
+    build:
+      context: .
+      dockerfile: memory_agent/Dockerfile
+    container_name: crm-memory-agent
+    environment:
+      BACKEND_URL: http://crm-backend:8080
+      REDIS_HOST: crm-redis
+      REDIS_PORT: 6379
+      QDRANT_HOST: crm-qdrant
+      QDRANT_PORT: 6333
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      GOOGLE_CLOUD_PROJECT: ${GCP_PROJECT:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
+      ENVIRONMENT: local
+    ports:
+      - "8002:8002"
+    networks: [crm-net]
+    healthcheck:
+      # python:3.12-slim has no curl/wget; use Python's built-in urllib
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8002/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  crm-context-agent:
+    build:
+      context: .
+      dockerfile: context_agent/Dockerfile
+    container_name: crm-context-agent
+    environment:
+      BACKEND_URL: http://crm-backend:8080
+      REDIS_HOST: crm-redis
+      REDIS_PORT: 6379
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
+      ENVIRONMENT: local
+    ports:
+      - "8003:8003"
+    networks: [crm-net]
+    healthcheck:
+      # python:3.12-slim has no curl/wget; use Python's built-in urllib
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8003/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+
+  crm-guardrails:
+    build:
+      context: .
+      dockerfile: guardrails/Dockerfile
+    container_name: crm-guardrails
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
+      ENVIRONMENT: local
+    ports:
+      - "8004:8004"
+    networks: [crm-net]
+    healthcheck:
+      # python:3.12-slim has no curl/wget; use Python's built-in urllib
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8004/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped

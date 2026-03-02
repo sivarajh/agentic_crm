@@ -1,0 +1,20 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-orchestrator-config
+  namespace: crm-agents
+data:
+  SERVICE_NAME: crm-orchestrator
+  PORT: "8001"
+  BACKEND_URL: http://crm-backend.crm-platform.svc.cluster.local:8080
+  MEMORY_AGENT_URL: http://crm-memory-agent.crm-agents.svc.cluster.local:8002
+  CONTEXT_AGENT_URL: http://crm-context-agent.crm-agents.svc.cluster.local:8003
+  GUARDRAILS_URL: http://crm-guardrails.crm-agents.svc.cluster.local:8004
+  REDIS_HOST: redis.crm-system.svc.cluster.local
+  REDIS_PORT: "6379"
+  QDRANT_HOST: qdrant.crm-system.svc.cluster.local
+  QDRANT_PORT: "6333"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.crm-observability.svc.cluster.local:4317
+  GUARDRAILS_ENABLED: "true"
+  LOG_LEVEL: INFO

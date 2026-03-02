@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "0.3",
+  "name": "crm-orchestrator",
+  "displayName": "CRM Orchestrator Agent",
+  "description": "Central coordinator for all CRM agentic workflows. Routes tasks to specialized sub-agents and manages multi-turn conversation flow.",
+  "version": "0.1.0",
+  "url": "http://crm-orchestrator.crm-agents.svc.cluster.local:8001",
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": true,
+    "stateTransitionHistory": true,
+    "parallelTaskExecution": true
+  },
+  "authentication": {
+    "schemes": ["Bearer"],
+    "required": false
+  },
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "skills": [
+    {
+      "id": "route_task",
+      "name": "Route Task",
+      "description": "Analyze and route a user intent to appropriate specialized agent(s)",
+      "tags": ["routing", "orchestration"]
+    },
+    {
+      "id": "execute_sequential",
+      "name": "Sequential Workflow",
+      "description": "Execute a sequence of agent tasks in order, passing outputs as inputs",
+      "tags": ["workflow", "sequential"]
+    },
+    {
+      "id": "execute_parallel",
+      "name": "Parallel Workflow",
+      "description": "Dispatch multiple agent tasks simultaneously and aggregate results",
+      "tags": ["workflow", "parallel"]
+    }
+  ],
+  "subAgents": [
+    {
+      "agentId": "crm-memory-agent",
+      "url": "http://crm-memory-agent.crm-agents.svc.cluster.local:8002"
+    },
+    {
+      "agentId": "crm-context-agent",
+      "url": "http://crm-context-agent.crm-agents.svc.cluster.local:8003"
+    }
+  ]
+}
