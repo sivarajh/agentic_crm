@@ -1,0 +1,157 @@
+spring:
+  application:
+    name: crm-backend
+
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/crmdb}
+    username: ${POSTGRES_USER:crm}
+    password: ${POSTGRES_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: CrmHikariPool
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    validate-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+          max-wait: 1000ms
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+    time-zone: UTC
+
+  security:
+    # Disable default security for local dev; configure properly for prod
+    user:
+      name: ${ADMIN_USER:admin}
+      password: ${ADMIN_PASSWORD:changeme}
+
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+  compression:
+    enabled: true
+    mime-types: application/json,text/plain
+  error:
+    include-message: always
+    include-binding-errors: always
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics,env,flyway
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      service: crm-backend
+      environment: ${ENVIRONMENT:local}
+  tracing:
+    sampling:
+      probability: 1.0
+
+otel:
+  service:
+    name: crm-backend
+  exporter:
+    otlp:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4317}
+      protocol: grpc
+
+logging:
+  pattern:
+    console: >
+      {"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%p","logger":"%c{1}",
+       "trace_id":"%X{traceId}","span_id":"%X{spanId}","service":"crm-backend",
+       "message":"%m"}%n
+  level:
+    root: INFO
+    com.crm: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: WARN
+
+# ─── CRM Application Config ──────────────────────────────────────────────────
+crm:
+  agents:
+    orchestrator-url: ${ORCHESTRATOR_URL:http://localhost:8001}
+    memory-agent-url: ${MEMORY_AGENT_URL:http://localhost:8002}
+    context-agent-url: ${CONTEXT_AGENT_URL:http://localhost:8003}
+    guardrails-url: ${GUARDRAILS_URL:http://localhost:8004}
+    connection-timeout-ms: ${AGENT_CONN_TIMEOUT_MS:5000}
+    read-timeout-ms: ${AGENT_READ_TIMEOUT_MS:30000}
+
+  session:
+    ttl-minutes: ${SESSION_TTL_MINUTES:30}
+    heartbeat-interval-ms: ${SESSION_HEARTBEAT_MS:60000}
+
+  context:
+    cache-ttl-minutes: ${CTX_CACHE_TTL_MINUTES:5}
+
+  qdrant:
+    host: ${QDRANT_HOST:localhost}
+    port: ${QDRANT_PORT:6334}
+    api-key: ${QDRANT_API_KEY:}
+    use-tls: ${QDRANT_USE_TLS:false}
+    semantic-collection: crm_semantic
+    episodic-collection: crm_episodic_embeddings
+
+  memory:
+    episodic:
+      recent-limit: ${EPISODIC_RECENT_LIMIT:10}
+    working:
+      ttl-minutes: ${WORKING_MEMORY_TTL_MINUTES:30}
+      reasoning-max-entries: ${WORKING_MEMORY_REASONING_MAX:50}
+
+  compliance:
+    audit:
+      hash-algorithm: SHA-256
+
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+  show-actuator: false

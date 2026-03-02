@@ -1,0 +1,35 @@
+networks:
+  crm-net:
+    external: true
+
+services:
+  crm-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: crm-backend
+    environment:
+      POSTGRES_URL: jdbc:postgresql://crm-postgres:5432/crmdb
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD: changeme
+      REDIS_HOST: crm-redis
+      REDIS_PORT: 6379
+      QDRANT_HOST: crm-qdrant
+      QDRANT_PORT: 6334
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
+      ORCHESTRATOR_URL: http://crm-orchestrator:8001
+      MEMORY_AGENT_URL: http://crm-memory-agent:8002
+      CONTEXT_AGENT_URL: http://crm-context-agent:8003
+      GUARDRAILS_URL: http://crm-guardrails:8004
+      ENVIRONMENT: local
+    ports:
+      - "8080:8080"
+    networks: [crm-net]
+    healthcheck:
+      # eclipse-temurin alpine has wget, not curl
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/actuator/health/readiness"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
