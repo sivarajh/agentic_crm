@@ -1,0 +1,40 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-system
+  labels:
+    app.kubernetes.io/part-of: crm-platform
+    purpose: infrastructure
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-platform
+  labels:
+    app.kubernetes.io/part-of: crm-platform
+    purpose: backend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-agents
+  labels:
+    app.kubernetes.io/part-of: crm-platform
+    purpose: agents
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-ui
+  labels:
+    app.kubernetes.io/part-of: crm-platform
+    purpose: frontend
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-observability
+  labels:
+    app.kubernetes.io/part-of: crm-platform
+    purpose: observability
