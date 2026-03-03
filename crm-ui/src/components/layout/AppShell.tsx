@@ -19,7 +19,7 @@ export function AppShell() {
       <main className="flex flex-1 flex-col overflow-hidden">
         <header className="flex h-16 items-center border-b border-gray-200 bg-white px-6">
           <h2 className="text-base font-semibold text-gray-800">
-            Agentic CRM Assistant
+            IQ Smart Assistant
           </h2>
         </header>
         <div className="flex-1 overflow-hidden">

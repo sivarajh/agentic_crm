@@ -10,7 +10,7 @@ interface Props {
 export function MessageInput({
   onSend,
   disabled,
-  placeholder = 'Ask the CRM assistant...',
+  placeholder = 'Ask the IQ Smart Assistant...',
 }: Props) {
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)

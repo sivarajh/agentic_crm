@@ -18,7 +18,7 @@ export function SessionPanel() {
     try {
       const session = await sessionApi.create({
         userId: DEMO_USER_ID,
-        agentId: 'crm-orchestrator',
+        agentId: 'IQ Smart Assistant',
       })
       setSession(session)
 
@@ -78,7 +78,7 @@ export function SessionPanel() {
 
       <div className="text-xs text-gray-400 space-y-1">
         <p>User: {DEMO_USER_ID.slice(0, 8)}...</p>
-        <p>Agent: crm-orchestrator</p>
+        <p>Agent: IQ Smart Assistant</p>
       </div>
     </div>
   )
