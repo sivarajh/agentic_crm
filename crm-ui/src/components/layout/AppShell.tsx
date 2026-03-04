@@ -1,8 +1,19 @@
+import { useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Text, Pill, FlexLayout, StackLayout } from '@salt-ds/core'
 import { ChatWindow } from '../chat/ChatWindow'
 import { SessionPanel } from './SessionPanel'
+import { useConversationStore } from '@/store'
 
 export function AppShell() {
+  const location = useLocation()
+  const { setViewingConversation } = useConversationStore()
+
+  // Sync URL → store: /conversation/:id sets the viewed conversation, / clears it
+  useEffect(() => {
+    const match = location.pathname.match(/^\/conversation\/(.+)$/)
+    setViewingConversation(match ? match[1] : null)
+  }, [location.pathname])
   return (
     <FlexLayout direction="row" style={{ height: '100vh', overflow: 'hidden' }}>
       {/* Sidebar */}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button, Text, StackLayout, FlexLayout, Divider } from '@salt-ds/core'
 import { useSessionStore, useConversationStore, useAgentStore } from '@/store'
 import { sessionApi } from '@/api/sessionApi'
@@ -8,6 +9,8 @@ const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001'
 
 export function SessionPanel() {
   const [isCreating, setIsCreating] = useState(false)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const navigate = useNavigate()
   const { currentSession, setSession } = useSessionStore()
   const {
     currentConversation,
@@ -68,11 +71,20 @@ export function SessionPanel() {
       clearMessages()
       clearStreamingContent()
       setAgentStatus('idle')
+      navigate('/')
     } catch (err) {
       console.error('Failed to create session:', err)
     } finally {
       setIsCreating(false)
     }
+  }
+
+  function copyLink(conversationId: string) {
+    const url = `${window.location.origin}/conversation/${conversationId}`
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedId(conversationId)
+      setTimeout(() => setCopiedId(null), 1500)
+    })
   }
 
   const activeConvId = viewingConversationId ?? currentConversation?.conversationId
@@ -125,7 +137,7 @@ export function SessionPanel() {
               {/* Current conversation */}
               {currentConversation && (
                 <button
-                  onClick={() => setViewingConversation(null)}
+                  onClick={() => { setViewingConversation(null); navigate('/') }}
                   style={{
                     all: 'unset',
                     display: 'block',
@@ -165,7 +177,7 @@ export function SessionPanel() {
                     }}
                   >
                     <button
-                      onClick={() => setViewingConversation(entry.conversationId)}
+                      onClick={() => { navigate(`/conversation/${entry.conversationId}`) }}
                       style={{
                         all: 'unset',
                         flex: 1,
@@ -177,6 +189,23 @@ export function SessionPanel() {
                       <Text styleAs="label" style={{ fontSize: '12px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {entry.label}
                       </Text>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); copyLink(entry.conversationId) }}
+                      title="Copy shareable link"
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        padding: '2px var(--salt-spacing-50)',
+                        color: copiedId === entry.conversationId
+                          ? 'var(--salt-status-positive-foreground)'
+                          : 'var(--salt-content-secondary-foreground)',
+                        fontSize: '12px',
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      {copiedId === entry.conversationId ? '✓' : '🔗'}
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); removeFromHistory(entry.conversationId) }}
