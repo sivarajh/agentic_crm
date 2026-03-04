@@ -7,7 +7,7 @@ export function AppShell() {
       {/* Sidebar */}
       <aside className="w-64 flex-shrink-0 border-r border-gray-200 bg-white">
         <div className="flex h-16 items-center border-b border-gray-100 px-4">
-          <h1 className="text-lg font-bold text-gray-900">CRM Agent</h1>
+          <h1 className="text-lg font-bold text-gray-900">IQ Smart Assist</h1>
           <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
             AI
           </span>
