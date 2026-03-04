@@ -64,25 +64,20 @@ export function ChatWindow() {
     }
   }
 
-  if (!currentSession) {
-    return (
-      <FlexLayout
-        align="center"
-        justify="center"
-        style={{ height: '100%' }}
-      >
-        <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
-          No active session. Create a session to start chatting.
-        </Text>
-      </FlexLayout>
-    )
-  }
+  const inputDisabled = !currentSession || isSending || agentStatus === 'thinking' || agentStatus === 'working'
 
   return (
     <StackLayout direction="column" gap={0} style={{ height: '100%' }}>
       {/* Message list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--salt-spacing-200)' }}>
-        {messages.length === 0 && (
+        {messages.length === 0 && !currentSession && (
+          <FlexLayout justify="center" style={{ marginTop: 'var(--salt-spacing-400)' }}>
+            <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
+              Create a session to start chatting with IQ Smart Assistant.
+            </Text>
+          </FlexLayout>
+        )}
+        {messages.length === 0 && currentSession && (
           <FlexLayout justify="center" style={{ marginTop: 'var(--salt-spacing-400)' }}>
             <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
               Start a conversation with your IQ Smart Assistant.
@@ -93,7 +88,7 @@ export function ChatWindow() {
           {messages.map((msg) => (
             <MessageBubble key={msg.messageId} message={msg} />
           ))}
-          {streamingContent && (
+          {streamingContent && currentSession && (
             <MessageBubble
               message={{
                 messageId: 'streaming',
@@ -116,15 +111,33 @@ export function ChatWindow() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* No-session banner — shown above input when session ended */}
+      {!currentSession && (
+        <div
+          style={{
+            borderTop: '1px solid var(--salt-separable-borderColor)',
+            padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+            background: 'var(--salt-status-warning-background)',
+            textAlign: 'center',
+          }}
+        >
+          <Text styleAs="label" style={{ color: 'var(--salt-status-warning-foreground)' }}>
+            Session ended — history is preserved. Start a new session to continue.
+          </Text>
+        </div>
+      )}
+
       {/* Status bar */}
-      <div
-        style={{
-          borderTop: '1px solid var(--salt-separable-borderColor)',
-          padding: 'var(--salt-spacing-50) var(--salt-spacing-200)',
-        }}
-      >
-        <AgentStatusIndicator status={agentStatus} />
-      </div>
+      {currentSession && (
+        <div
+          style={{
+            borderTop: '1px solid var(--salt-separable-borderColor)',
+            padding: 'var(--salt-spacing-50) var(--salt-spacing-200)',
+          }}
+        >
+          <AgentStatusIndicator status={agentStatus} />
+        </div>
+      )}
 
       {/* Input */}
       <div
@@ -133,10 +146,7 @@ export function ChatWindow() {
           padding: 'var(--salt-spacing-150) var(--salt-spacing-200)',
         }}
       >
-        <MessageInput
-          onSend={handleSend}
-          disabled={isSending || agentStatus === 'thinking' || agentStatus === 'working'}
-        />
+        <MessageInput onSend={handleSend} disabled={inputDisabled} />
       </div>
     </StackLayout>
   )

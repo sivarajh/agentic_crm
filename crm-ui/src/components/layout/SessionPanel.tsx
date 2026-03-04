@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Text, StackLayout, FlexLayout } from '@salt-ds/core'
 import { useSessionStore, useConversationStore, useAgentStore } from '@/store'
 import { sessionApi } from '@/api/sessionApi'
@@ -11,6 +11,19 @@ export function SessionPanel() {
   const { currentSession, setSession } = useSessionStore()
   const { setConversation, clearMessages } = useConversationStore()
   const { setAgentStatus, clearStreamingContent } = useAgentStore()
+
+  // Validate persisted session on mount — clear if terminated/expired
+  useEffect(() => {
+    if (!currentSession) return
+    sessionApi.get(currentSession.sessionId).then((s) => {
+      if (s.state !== 'ACTIVE') {
+        setSession(null)
+      }
+    }).catch(() => {
+      // Session not found or network error — clear it
+      setSession(null)
+    })
+  }, [])
 
   async function startNewSession() {
     setIsCreating(true)
@@ -37,9 +50,10 @@ export function SessionPanel() {
     try {
       await sessionApi.terminate(currentSession.sessionId)
     } catch (_) { /* ignore */ }
+    // Only clear the session — keep conversation so history stays visible
     setSession(null)
-    setConversation(null)
-    clearMessages()
+    setAgentStatus('idle')
+    clearStreamingContent()
   }
 
   return (
@@ -66,9 +80,14 @@ export function SessionPanel() {
           </Button>
         </StackLayout>
       ) : (
-        <Button appearance="solid" sentiment="accented" onClick={startNewSession} disabled={isCreating} style={{ width: '100%' }}>
-          {isCreating ? 'Starting…' : 'New Session'}
-        </Button>
+        <StackLayout gap={1}>
+          <Button appearance="solid" sentiment="accented" onClick={startNewSession} disabled={isCreating} style={{ width: '100%' }}>
+            {isCreating ? 'Starting…' : 'New Session'}
+          </Button>
+          <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)', textAlign: 'center', fontSize: '11px' }}>
+            Previous history preserved above
+          </Text>
+        </StackLayout>
       )}
 
       <StackLayout gap={0}>
