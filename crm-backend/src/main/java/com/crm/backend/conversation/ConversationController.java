@@ -62,6 +62,13 @@ public class ConversationController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(msg));
     }
 
+    @DeleteMapping("/{conversationId}")
+    public ResponseEntity<ApiResponse<Void>> deleteConversation(
+            @PathVariable UUID conversationId) {
+        conversationService.softDeleteConversation(conversationId);
+        return ResponseEntity.ok(ApiResponse.ok(null));
+    }
+
     @GetMapping("/{conversationId}/messages")
     public ResponseEntity<ApiResponse<Page<ConversationMessage>>> getMessages(
             @PathVariable UUID conversationId,

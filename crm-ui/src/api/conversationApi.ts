@@ -31,4 +31,7 @@ export const conversationApi = {
     apiClient
       .get(`/conversations/${conversationId}/messages`, { params: { page, size } })
       .then((r) => r.data),
+
+  delete: (conversationId: string): Promise<void> =>
+    apiClient.delete(`/conversations/${conversationId}`).then(() => undefined),
 }

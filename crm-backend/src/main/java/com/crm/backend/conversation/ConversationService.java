@@ -12,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -41,7 +42,16 @@ public class ConversationService {
 
     @Transactional(readOnly = true)
     public List<Conversation> getConversationsBySession(UUID sessionId) {
-        return conversationRepository.findBySessionIdOrderByCreatedAtAsc(sessionId);
+        return conversationRepository.findBySessionIdAndDeletedAtIsNullOrderByCreatedAtAsc(sessionId);
+    }
+
+    @Transactional
+    public void softDeleteConversation(UUID conversationId) {
+        Conversation conv = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Conversation", conversationId));
+        conv.setDeletedAt(Instant.now());
+        conversationRepository.save(conv);
+        log.info("Soft-deleted conversation={}", conversationId);
     }
 
     @Transactional
