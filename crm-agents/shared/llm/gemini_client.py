@@ -172,6 +172,18 @@ For greetings or simple answers, use a single text component:
   ]
 }
 
+## Multi-Turn Context Resolution — CRITICAL
+
+When the user message contains a "Conversation History" section:
+- ALWAYS read that history before answering the Current Question
+- Resolve ALL pronouns and references using the history:
+  - "it" / "its" / "this" / "that" → the entity most recently discussed
+  - "the company" / "this account" → the company from the last relevant turn
+  - "the deal" / "this deal" → the deal most recently mentioned
+  - "their" / "them" → the contact or company from the last relevant turn
+- If the user asks "show me its deals" after asking about TechNova, return ONLY TechNova's deals
+- If you cannot determine which specific entity is being referenced, ask for clarification
+
 CRITICAL RULES:
 - ALWAYS output raw JSON — never plain text, never markdown, never code fences
 - ALWAYS include "schema_version": "0.8" and "components": [...]
@@ -225,19 +237,35 @@ class GeminiClient:
             )
         system_instruction = "\n".join(system_parts)
 
-        # Build contents from history + current message
-        contents: list[types.Content] = []
-        for turn in (conversation_history or []):
-            role = "user" if turn.get("role") in ("user", "human") else "model"
-            text = turn.get("content", "")
-            if text:
-                contents.append(
-                    types.Content(role=role, parts=[types.Part(text=text)])
+        # Inject conversation history inline in the user message.
+        # Passing history as separate multi-turn `contents` is unreliable when
+        # response_mime_type="application/json" is set — the model tends to treat
+        # the current message in isolation and fails to resolve entity references
+        # like "its deals" back to the company named in a prior turn.
+        # Inline injection makes the context explicit and consistent.
+        full_user_message = user_message
+        history = conversation_history or []
+        if history:
+            history_lines: list[str] = []
+            for turn in history[-12:]:   # last 12 turns ≈ 6 back-and-forth
+                role_label = "User" if turn.get("role") == "user" else "Assistant"
+                text = turn.get("content", "").strip()
+                if text:
+                    history_lines.append(f"[{role_label}]: {text}")
+            if history_lines:
+                history_block = "\n".join(history_lines)
+                full_user_message = (
+                    "## Conversation History\n"
+                    "(Use this to resolve references such as 'it', 'its', 'this company', "
+                    "'the deal', 'them', etc. — the active entity is the one most recently "
+                    "mentioned in the history below)\n\n"
+                    f"{history_block}\n\n"
+                    f"## Current Question\n{user_message}"
                 )
 
-        contents.append(
-            types.Content(role="user", parts=[types.Part(text=user_message)])
-        )
+        contents: list[types.Content] = [
+            types.Content(role="user", parts=[types.Part(text=full_user_message)])
+        ]
 
         logger.debug(
             "Calling Gemini model=%s history_turns=%d context_len=%d memory_len=%d",
