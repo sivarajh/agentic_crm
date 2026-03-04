@@ -34,10 +34,21 @@ export const useSessionStore = create<SessionStore>()(
 
 // ─── Conversation Store ───────────────────────────────────────────────────────
 
+export interface ConversationHistoryEntry {
+  conversationId: string
+  sessionId: string
+  createdAt: string
+  label: string
+}
+
 interface ConversationStore {
   currentConversation: Conversation | null
+  conversationHistory: ConversationHistoryEntry[]
+  viewingConversationId: string | null   // null = current; set = browsing history
   messages: ConversationMessage[]
   setConversation: (conv: Conversation | null) => void
+  addToHistory: (conv: Conversation, label?: string) => void
+  setViewingConversation: (id: string | null) => void
   addMessage: (msg: ConversationMessage) => void
   setMessages: (msgs: ConversationMessage[]) => void
   clearMessages: () => void
@@ -47,10 +58,31 @@ export const useConversationStore = create<ConversationStore>()(
   persist(
     immer((set) => ({
       currentConversation: null,
+      conversationHistory: [],
+      viewingConversationId: null,
       messages: [],
       setConversation: (conv) =>
         set((state) => {
           state.currentConversation = conv
+          state.viewingConversationId = null  // always reset to current on new conversation
+        }),
+      addToHistory: (conv, label) =>
+        set((state) => {
+          const exists = state.conversationHistory.some(
+            (h) => h.conversationId === conv.conversationId
+          )
+          if (!exists) {
+            state.conversationHistory.unshift({
+              conversationId: conv.conversationId,
+              sessionId: conv.sessionId,
+              createdAt: conv.createdAt ?? new Date().toISOString(),
+              label: label ?? `Session ${new Date(conv.createdAt ?? Date.now()).toLocaleDateString()} ${new Date(conv.createdAt ?? Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+            })
+          }
+        }),
+      setViewingConversation: (id) =>
+        set((state) => {
+          state.viewingConversationId = id
         }),
       addMessage: (msg) =>
         set((state) => {
@@ -67,8 +99,11 @@ export const useConversationStore = create<ConversationStore>()(
     })),
     {
       name: 'iq-conversation',
-      // Only persist IDs — messages are fetched from the backend on load
-      partialize: (state) => ({ currentConversation: state.currentConversation }),
+      partialize: (state) => ({
+        currentConversation: state.currentConversation,
+        conversationHistory: state.conversationHistory,
+        viewingConversationId: state.viewingConversationId,
+      }),
     }
   )
 )

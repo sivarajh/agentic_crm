@@ -7,29 +7,52 @@ import { useConversationStore, useAgentStore, useSessionStore } from '@/store'
 import { conversationApi } from '@/api/conversationApi'
 import { agentApi } from '@/api/agentApi'
 import { useA2UIStream } from '@/a2ui/hooks/useA2UIStream'
+import type { ConversationMessage } from '@/types/conversation'
 
 export function ChatWindow() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isSending, setIsSending] = useState(false)
+  const [historyMessages, setHistoryMessages] = useState<ConversationMessage[]>([])
 
   const { currentSession } = useSessionStore()
-  const { messages, currentConversation, addMessage, setMessages } = useConversationStore()
+  const {
+    messages,
+    currentConversation,
+    viewingConversationId,
+    addMessage,
+    setMessages,
+  } = useConversationStore()
   const { agentStatus, streamingContent, setAgentStatus, clearStreamingContent } = useAgentStore()
 
   useA2UIStream(currentSession?.sessionId ?? null)
 
-  // Load messages from backend on mount (or when conversation changes)
+  const isViewingHistory = viewingConversationId !== null &&
+    viewingConversationId !== currentConversation?.conversationId
+
+  // Load current conversation messages from backend
   useEffect(() => {
-    if (!currentConversation) return
+    if (!currentConversation || isViewingHistory) return
     conversationApi
       .getMessages(currentConversation.conversationId)
       .then(({ content }) => setMessages(content))
       .catch(console.error)
-  }, [currentConversation?.conversationId])
+  }, [currentConversation?.conversationId, isViewingHistory])
+
+  // Load history conversation messages when user clicks a past conversation
+  useEffect(() => {
+    if (!isViewingHistory || !viewingConversationId) {
+      setHistoryMessages([])
+      return
+    }
+    conversationApi
+      .getMessages(viewingConversationId)
+      .then(({ content }) => setHistoryMessages(content))
+      .catch(console.error)
+  }, [viewingConversationId, isViewingHistory])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, streamingContent])
+  }, [messages, historyMessages, streamingContent])
 
   useEffect(() => {
     if (agentStatus !== 'done') return
@@ -64,20 +87,38 @@ export function ChatWindow() {
     }
   }
 
-  const inputDisabled = !currentSession || isSending || agentStatus === 'thinking' || agentStatus === 'working'
+  const displayedMessages = isViewingHistory ? historyMessages : messages
+  const inputDisabled = !currentSession || isViewingHistory || isSending ||
+    agentStatus === 'thinking' || agentStatus === 'working'
 
   return (
     <StackLayout direction="column" gap={0} style={{ height: '100%' }}>
+      {/* History view banner */}
+      {isViewingHistory && (
+        <div
+          style={{
+            borderBottom: '1px solid var(--salt-separable-borderColor)',
+            padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+            background: 'var(--salt-status-info-background)',
+            textAlign: 'center',
+          }}
+        >
+          <Text styleAs="label" style={{ color: 'var(--salt-status-info-foreground)' }}>
+            Viewing past conversation (read-only) — click "Current" in the sidebar to return
+          </Text>
+        </div>
+      )}
+
       {/* Message list */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--salt-spacing-200)' }}>
-        {messages.length === 0 && !currentSession && (
+        {displayedMessages.length === 0 && !currentSession && !isViewingHistory && (
           <FlexLayout justify="center" style={{ marginTop: 'var(--salt-spacing-400)' }}>
             <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
               Create a session to start chatting with IQ Smart Assistant.
             </Text>
           </FlexLayout>
         )}
-        {messages.length === 0 && currentSession && (
+        {displayedMessages.length === 0 && currentSession && (
           <FlexLayout justify="center" style={{ marginTop: 'var(--salt-spacing-400)' }}>
             <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
               Start a conversation with your IQ Smart Assistant.
@@ -85,10 +126,10 @@ export function ChatWindow() {
           </FlexLayout>
         )}
         <StackLayout gap={1}>
-          {messages.map((msg) => (
+          {displayedMessages.map((msg) => (
             <MessageBubble key={msg.messageId} message={msg} />
           ))}
-          {streamingContent && currentSession && (
+          {!isViewingHistory && streamingContent && currentSession && (
             <MessageBubble
               message={{
                 messageId: 'streaming',
@@ -111,8 +152,8 @@ export function ChatWindow() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* No-session banner — shown above input when session ended */}
-      {!currentSession && (
+      {/* No-session banner */}
+      {!currentSession && !isViewingHistory && (
         <div
           style={{
             borderTop: '1px solid var(--salt-separable-borderColor)',
@@ -122,13 +163,13 @@ export function ChatWindow() {
           }}
         >
           <Text styleAs="label" style={{ color: 'var(--salt-status-warning-foreground)' }}>
-            Session ended — history is preserved. Start a new session to continue.
+            Session ended — start a new session to continue chatting.
           </Text>
         </div>
       )}
 
       {/* Status bar */}
-      {currentSession && (
+      {currentSession && !isViewingHistory && (
         <div
           style={{
             borderTop: '1px solid var(--salt-separable-borderColor)',
