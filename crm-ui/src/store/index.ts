@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { immer } from 'zustand/middleware/immer'
+import { persist } from 'zustand/middleware'
 import type { Session } from '@/types/session'
 import type { Conversation, ConversationMessage } from '@/types/conversation'
 import type { AgentTask, StreamEvent } from '@/types/agent'
@@ -14,18 +15,21 @@ interface SessionStore {
 }
 
 export const useSessionStore = create<SessionStore>()(
-  immer((set) => ({
-    currentSession: null,
-    isLoading: false,
-    setSession: (session) =>
-      set((state) => {
-        state.currentSession = session
-      }),
-    setLoading: (loading) =>
-      set((state) => {
-        state.isLoading = loading
-      }),
-  }))
+  persist(
+    immer((set) => ({
+      currentSession: null,
+      isLoading: false,
+      setSession: (session) =>
+        set((state) => {
+          state.currentSession = session
+        }),
+      setLoading: (loading) =>
+        set((state) => {
+          state.isLoading = loading
+        }),
+    })),
+    { name: 'iq-session' }
+  )
 )
 
 // ─── Conversation Store ───────────────────────────────────────────────────────
@@ -40,26 +44,29 @@ interface ConversationStore {
 }
 
 export const useConversationStore = create<ConversationStore>()(
-  immer((set) => ({
-    currentConversation: null,
-    messages: [],
-    setConversation: (conv) =>
-      set((state) => {
-        state.currentConversation = conv
-      }),
-    addMessage: (msg) =>
-      set((state) => {
-        state.messages.push(msg)
-      }),
-    setMessages: (msgs) =>
-      set((state) => {
-        state.messages = msgs
-      }),
-    clearMessages: () =>
-      set((state) => {
-        state.messages = []
-      }),
-  }))
+  persist(
+    immer((set) => ({
+      currentConversation: null,
+      messages: [],
+      setConversation: (conv) =>
+        set((state) => {
+          state.currentConversation = conv
+        }),
+      addMessage: (msg) =>
+        set((state) => {
+          state.messages.push(msg)
+        }),
+      setMessages: (msgs) =>
+        set((state) => {
+          state.messages = msgs
+        }),
+      clearMessages: () =>
+        set((state) => {
+          state.messages = []
+        }),
+    })),
+    { name: 'iq-conversation' }
+  )
 )
 
 // ─── Agent Store ──────────────────────────────────────────────────────────────
