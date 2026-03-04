@@ -102,7 +102,7 @@ export function SessionPanel() {
         <StackLayout gap={0}>
           <FlexLayout gap={1}>
             <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>User:</Text>
-            <Text styleAs="code" style={{ fontSize: '11px' }}>{DEMO_USER_ID.slice(0, 8)}…</Text>
+            <Text styleAs="code" style={{ fontSize: '11px' }}>{DEMO_USER_ID}</Text>
           </FlexLayout>
           <FlexLayout gap={1}>
             <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>Agent:</Text>
