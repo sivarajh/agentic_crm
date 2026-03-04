@@ -31,6 +31,10 @@ export function SessionPanel() {
   async function startNewSession() {
     setIsCreating(true)
     try {
+      // Terminate existing session if any
+      if (currentSession) {
+        try { await sessionApi.terminate(currentSession.sessionId) } catch (_) { /* ignore */ }
+      }
       // Save current conversation to history before replacing it
       if (currentConversation) {
         addToHistory(currentConversation)
@@ -52,51 +56,32 @@ export function SessionPanel() {
     }
   }
 
-  async function endSession() {
-    if (!currentSession) return
-    try {
-      await sessionApi.terminate(currentSession.sessionId)
-    } catch (_) { /* ignore */ }
-    if (currentConversation) {
-      addToHistory(currentConversation)
-    }
-    setSession(null)
-    setAgentStatus('idle')
-    clearStreamingContent()
-  }
-
   const activeConvId = viewingConversationId ?? currentConversation?.conversationId
 
   return (
     <StackLayout gap={0} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Session controls */}
       <StackLayout gap={2} style={{ padding: 'var(--salt-spacing-200)', flexShrink: 0 }}>
-        {currentSession ? (
-          <StackLayout gap={1}>
-            <div
-              style={{
-                borderRadius: 'var(--salt-curve-100)',
-                background: 'var(--salt-status-positive-background)',
-                border: '1px solid var(--salt-status-positive-borderColor)',
-                padding: 'var(--salt-spacing-100) var(--salt-spacing-150)',
-              }}
-            >
-              <Text styleAs="label" style={{ color: 'var(--salt-status-positive-foreground)', fontWeight: 600 }}>
-                Active Session
-              </Text>
-              <Text styleAs="code" style={{ display: 'block', fontSize: '11px', marginTop: 2, color: 'var(--salt-status-positive-foreground)' }}>
-                {currentSession.sessionId.slice(0, 8)}…
-              </Text>
-            </div>
-            <Button appearance="bordered" sentiment="negative" onClick={endSession} style={{ width: '100%' }}>
-              End Session
-            </Button>
-          </StackLayout>
-        ) : (
-          <Button appearance="solid" sentiment="accented" onClick={startNewSession} disabled={isCreating} style={{ width: '100%' }}>
-            {isCreating ? 'Starting…' : 'New Session'}
-          </Button>
+        {currentSession && (
+          <div
+            style={{
+              borderRadius: 'var(--salt-curve-100)',
+              background: 'var(--salt-status-positive-background)',
+              border: '1px solid var(--salt-status-positive-borderColor)',
+              padding: 'var(--salt-spacing-100) var(--salt-spacing-150)',
+            }}
+          >
+            <Text styleAs="label" style={{ color: 'var(--salt-status-positive-foreground)', fontWeight: 600 }}>
+              Active Session
+            </Text>
+            <Text styleAs="code" style={{ display: 'block', fontSize: '11px', marginTop: 2, color: 'var(--salt-status-positive-foreground)' }}>
+              {currentSession.sessionId.slice(0, 8)}…
+            </Text>
+          </div>
         )}
+        <Button appearance="solid" sentiment="accented" onClick={startNewSession} disabled={isCreating} style={{ width: '100%' }}>
+          {isCreating ? 'Starting…' : 'New'}
+        </Button>
 
         <StackLayout gap={0}>
           <FlexLayout gap={1}>
