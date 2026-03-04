@@ -19,7 +19,9 @@ export function AgentStatusIndicator({ status }: Props) {
   return (
     <FlexLayout direction="column" gap={0} style={{ width: '100%' }}>
       {(status === 'thinking' || status === 'working') && (
-        <LinearProgress aria-label={config.label} />
+        <div style={{ overflow: 'hidden', height: 4 }}>
+          <LinearProgress aria-label={config.label} />
+        </div>
       )}
       {config.label && (
         <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)', marginTop: 2 }}>
