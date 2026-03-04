@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     memory_agent_url: str = Field(default="http://localhost:8002")
     context_agent_url: str = Field(default="http://localhost:8003")
     guardrails_url: str = Field(default="http://localhost:8004")
+    web_search_agent_url: str = Field(default="http://localhost:8005")
 
     # ─── Redis ───────────────────────────────────────────────────────────────
     redis_host: str = Field(default="localhost")
@@ -59,6 +60,11 @@ class Settings(BaseSettings):
     # ─── Memory ──────────────────────────────────────────────────────────────
     working_memory_ttl_minutes: int = Field(default=30)
     episodic_recent_limit: int = Field(default=10)
+
+    # ─── Web Search ──────────────────────────────────────────────────────────
+    # Google Custom Search Engine ID (https://programmablesearchengine.google.com)
+    # Uses the existing GOOGLE_API_KEY. Falls back to DuckDuckGo if not set.
+    google_cse_id: str = Field(default="")
 
     # ─── Auth ────────────────────────────────────────────────────────────────
     internal_api_key: str = Field(default="crm-internal-dev-key")

@@ -42,7 +42,7 @@ public class ConversationService {
 
     @Transactional(readOnly = true)
     public List<Conversation> getConversationsBySession(UUID sessionId) {
-        return conversationRepository.findBySessionIdAndDeletedAtIsNullOrderByCreatedAtAsc(sessionId);
+        return conversationRepository.findBySessionIdAndDeletedAtIsNullOrderByCreatedAtDesc(sessionId);
     }
 
     @Transactional

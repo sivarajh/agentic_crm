@@ -20,6 +20,7 @@ class TaskManager:
         self._clients: dict[str, A2AClient] = {
             "crm-memory-agent": A2AClient(settings.memory_agent_url),
             "crm-context-agent": A2AClient(settings.context_agent_url),
+            "crm-web-search-agent": A2AClient(settings.web_search_agent_url),
         }
 
     async def delegate(

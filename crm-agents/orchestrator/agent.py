@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -78,6 +79,16 @@ ORCHESTRATOR_CARD = AgentCard(
             tags=["workflow", "parallel"],
         ),
     ],
+)
+
+# ── Web-search intent detector ────────────────────────────────────────────────
+
+_WEB_SEARCH_RE = re.compile(
+    r'\b(search the web|google|web search|internet|online|news|latest news|'
+    r'current events|today|trending|stock price|weather|'
+    r'what is|who is|how does|when did|where is|'
+    r'recent developments|latest|breaking)\b',
+    re.I,
 )
 
 # ── Singletons (module-level, created once per process) ───────────────────────
@@ -333,7 +344,10 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
             (task.metadata.get("payload") or {}).get("conversationId")
         )
 
-        context_result, memory_result, raw_history = await asyncio.gather(
+        # Determine whether intent requires real-time web search
+        needs_web_search = bool(_WEB_SEARCH_RE.search(intent))
+
+        context_result, memory_result, raw_history, web_search_result = await asyncio.gather(
             task_manager.delegate(
                 "crm-context-agent",
                 session_id,
@@ -353,12 +367,22 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
             backend.get_conversation_messages(conv_id_for_history, limit=20)
             if conv_id_for_history
             else _empty_list(),
+            # Only call web search agent when the intent signals external knowledge need
+            task_manager.delegate(
+                "crm-web-search-agent",
+                session_id,
+                intent,
+                {**sub_metadata, "skill_id": "web_search"},
+            )
+            if needs_web_search
+            else _empty_list(),
             return_exceptions=True,
         )
 
         context_data = _extract_artifact(context_result, "agent_context")
         memory_data = _extract_artifact(memory_result, "semantic_search_results")
         memory_items: list[dict] = memory_data.get("results", [])
+        web_search_data = _extract_artifact(web_search_result, "web_search_results") if needs_web_search else {}
 
         # Build conversation history for Gemini — exclude the current user
         # turn (it's passed separately as `user_message`).
@@ -373,8 +397,9 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
         span.set_attribute("context.fields_count", len(context_data))
         span.set_attribute("memory.results_count", len(memory_items))
         span.set_attribute("history.turns_count", len(conversation_history))
+        span.set_attribute("web_search.used", needs_web_search)
 
-        # ── 4. Build context / memory snippets for the prompt ─────────────
+        # ── 4. Build context / memory / web-search snippets for the prompt ─
         context_snippet = json.dumps(context_data, indent=2) if context_data else ""
 
         memory_lines: list[str] = []
@@ -391,9 +416,23 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                 memory_lines.append(f"- {str(text)[:300]}")
         memory_snippet = "\n".join(memory_lines)
 
+        # Format web search results as numbered list with title + URL + snippet
+        web_search_lines: list[str] = []
+        for i, r in enumerate(web_search_data.get("results", [])[:6], start=1):
+            title = r.get("title", "").strip()
+            url = r.get("url", "").strip()
+            snippet = r.get("snippet", "").strip()[:400]
+            if title or snippet:
+                web_search_lines.append(f"{i}. **{title}**\n   URL: {url}\n   {snippet}")
+        web_search_snippet = "\n\n".join(web_search_lines)
+
+        if needs_web_search:
+            span.set_attribute("web_search.results_count", len(web_search_data.get("results", [])))
+
         logger.debug(
-            "Context ready: context_fields=%d memory_items=%d history_turns=%d",
+            "Context ready: context_fields=%d memory_items=%d history_turns=%d web_results=%d",
             len(context_data), len(memory_items), len(conversation_history),
+            len(web_search_data.get("results", [])),
         )
 
         # ── 5. LLM: generate CRM response ─────────────────────────────────
@@ -404,6 +443,7 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                 context_snippet=context_snippet,
                 memory_snippet=memory_snippet,
                 conversation_history=conversation_history,
+                web_search_snippet=web_search_snippet,
             )
         except ValueError as cfg_err:
             # API key not configured — return a helpful error artifact
@@ -554,6 +594,8 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                     "intent": intent,
                     "context_fields": list(context_data.keys()),
                     "memory_results_count": len(memory_items),
+                    "web_search_used": needs_web_search,
+                    "web_search_results_count": len(web_search_data.get("results", [])),
                     "model": settings.gemini_model,
                 },
             ),

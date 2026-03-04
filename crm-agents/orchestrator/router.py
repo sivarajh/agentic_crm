@@ -38,6 +38,15 @@ _ROUTING_RULES = [
     # Memory consolidation
     (re.compile(r'\b(consolidat|summariz|compress)\b', re.I),
      "crm-memory-agent", "consolidate_memory", "sequential"),
+
+    # Web search — real-time information, news, external knowledge
+    (re.compile(
+        r'\b(search the web|google|web search|internet|online|news|latest news|'
+        r'current events|today|trending|stock price|weather|'
+        r'what is|who is|how does|when did|where is|'
+        r'recent developments|latest|breaking)\b',
+        re.I,
+    ), "crm-web-search-agent", "web_search", "sequential"),
 ]
 
 _DEFAULT_ROUTE = RouteDecision(

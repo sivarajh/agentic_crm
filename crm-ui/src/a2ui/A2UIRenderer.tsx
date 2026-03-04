@@ -3,6 +3,8 @@ import {
   Text, Card, Button, Divider,
   FlexLayout, StackLayout,
 } from '@salt-ds/core'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface RendererProps {
   components: A2UIComponent[]
@@ -117,16 +119,100 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
 
     case 'markdown':
       return (
-        <Text
-          as="pre"
-          style={{
-            whiteSpace: 'pre-wrap',
-            fontFamily: 'inherit',
-            margin: 0,
-          }}
-        >
-          {content}
-        </Text>
+        <div className="a2ui-markdown">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              h1: ({ children }) => <Text styleAs="h1" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              h2: ({ children }) => <Text styleAs="h2" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              h3: ({ children }) => <Text styleAs="h3" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              h4: ({ children }) => <Text styleAs="h4" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              p:  ({ children }) => <Text as="p" style={{ margin: '0.25em 0', lineHeight: 1.6 }}>{children}</Text>,
+              a:  ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer"
+                  style={{ color: 'var(--salt-status-info-foreground)', textDecoration: 'underline' }}>
+                  {children}
+                </a>
+              ),
+              code: ({ children, className }) => {
+                const isBlock = className?.startsWith('language-')
+                return isBlock ? (
+                  <pre style={{
+                    background: 'var(--salt-container-secondary-background)',
+                    border: '1px solid var(--salt-separable-borderColor)',
+                    borderRadius: 'var(--salt-curve-100)',
+                    padding: 'var(--salt-spacing-150)',
+                    overflowX: 'auto',
+                    margin: '0.5em 0',
+                  }}>
+                    <code style={{ fontFamily: 'var(--salt-text-code-fontFamily)', fontSize: 13 }}>{children}</code>
+                  </pre>
+                ) : (
+                  <code style={{
+                    fontFamily: 'var(--salt-text-code-fontFamily)',
+                    fontSize: 13,
+                    background: 'var(--salt-container-secondary-background)',
+                    borderRadius: 3,
+                    padding: '1px 5px',
+                  }}>{children}</code>
+                )
+              },
+              ul: ({ children }) => (
+                <ul style={{ paddingLeft: '1.5em', margin: '0.25em 0', lineHeight: 1.7 }}>{children}</ul>
+              ),
+              ol: ({ children }) => (
+                <ol style={{ paddingLeft: '1.5em', margin: '0.25em 0', lineHeight: 1.7 }}>{children}</ol>
+              ),
+              li: ({ children }) => <li style={{ marginBottom: 2 }}>{children}</li>,
+              blockquote: ({ children }) => (
+                <blockquote style={{
+                  borderLeft: '3px solid var(--salt-status-info-borderColor)',
+                  paddingLeft: 'var(--salt-spacing-150)',
+                  margin: '0.5em 0',
+                  color: 'var(--salt-content-secondary-foreground)',
+                }}>
+                  {children}
+                </blockquote>
+              ),
+              table: ({ children }) => (
+                <div style={{ overflowX: 'auto', margin: '0.5em 0' }}>
+                  <table style={{
+                    borderCollapse: 'collapse',
+                    width: '100%',
+                    border: '1px solid var(--salt-separable-borderColor)',
+                    borderRadius: 'var(--salt-curve-100)',
+                  }}>
+                    {children}
+                  </table>
+                </div>
+              ),
+              th: ({ children }) => (
+                <th style={{
+                  padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+                  background: 'var(--salt-container-secondary-background)',
+                  borderBottom: '1px solid var(--salt-separable-borderColor)',
+                  textAlign: 'left',
+                  fontWeight: 600,
+                }}>
+                  {children}
+                </th>
+              ),
+              td: ({ children }) => (
+                <td style={{
+                  padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+                  borderBottom: '1px solid var(--salt-separable-borderColor)',
+                }}>
+                  {children}
+                </td>
+              ),
+              hr: () => <Divider />,
+              strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
+              em: ({ children }) => <em>{children}</em>,
+            }}
+          >
+            {String(content ?? '')}
+          </ReactMarkdown>
+        </div>
       )
 
     // ── divider ──────────────────────────────────────────────────────────────

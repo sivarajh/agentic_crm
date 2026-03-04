@@ -73,7 +73,7 @@ export const useConversationStore = create<ConversationStore>()(
             (h) => h.conversationId === conv.conversationId
           )
           if (!exists) {
-            state.conversationHistory.unshift({
+            state.conversationHistory.push({
               conversationId: conv.conversationId,
               sessionId: conv.sessionId,
               createdAt: conv.createdAt ?? new Date().toISOString(),

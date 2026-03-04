@@ -51,6 +51,9 @@ dependencies = [
     # Async utilities
     "anyio>=4.3.0",
     "asyncio-throttle>=1.0.2",
+
+    # Web search (Web Search Agent) — Google Custom Search (primary) + DuckDuckGo (fallback)
+    "ddgs>=0.5.0",
 ]
 
 [project.optional-dependencies]

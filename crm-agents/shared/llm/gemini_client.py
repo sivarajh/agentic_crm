@@ -33,10 +33,15 @@ Your responsibilities:
 
 Guidelines:
 - Be concise, professional, and directly actionable.
-- Ground every statement in the supplied context or memory. Do NOT invent
-  customer names, deal values, or interaction history.
-- If the context is insufficient to answer accurately, say so explicitly and
-  describe what additional information would help.
+- For CRM questions (customers, deals, leads, tickets): ground your answer in
+  the supplied context or memory. Do NOT invent customer names, deal values,
+  or interaction history.
+- For general / web search questions: when "Live Web Search Results" are
+  provided in this prompt, you MUST answer using those results. Do NOT refuse
+  or say you lack access — the search results ARE your source. Summarise them
+  clearly and cite source URLs.
+- If no search results are provided and you lack CRM context to answer, say so
+  and describe what additional information would help.
 - Never expose raw UUIDs or internal system identifiers in your response
   unless the user specifically asks for them.
 
@@ -211,6 +216,7 @@ class GeminiClient:
         context_snippet: str = "",
         memory_snippet: str = "",
         conversation_history: list[dict] | None = None,
+        web_search_snippet: str = "",
     ) -> str:
         """
         Generate a CRM-aware response.
@@ -220,6 +226,7 @@ class GeminiClient:
             context_snippet:       JSON string of the agent context fabric.
             memory_snippet:        Bullet-formatted relevant past memories.
             conversation_history:  Previous turns [{role, content}] (oldest first).
+            web_search_snippet:    Formatted live web search results.
 
         Returns:
             The model's text response (may be A2UI JSON for CRM entity queries).
@@ -234,6 +241,15 @@ class GeminiClient:
         if memory_snippet:
             system_parts.append(
                 f"\n## Relevant Past Interactions & CRM Data\n{memory_snippet}"
+            )
+        if web_search_snippet:
+            system_parts.append(
+                "\n## Live Web Search Results — USE THESE TO ANSWER\n"
+                "IMPORTANT: The user asked a web search question. You MUST answer it "
+                "using the results below. Do NOT say you lack access to external "
+                "information — these search results are your source. Summarise the key "
+                "findings, include relevant source URLs, and present the answer clearly.\n\n"
+                f"{web_search_snippet}"
             )
         system_instruction = "\n".join(system_parts)
 
@@ -268,11 +284,12 @@ class GeminiClient:
         ]
 
         logger.debug(
-            "Calling Gemini model=%s history_turns=%d context_len=%d memory_len=%d",
+            "Calling Gemini model=%s history_turns=%d context_len=%d memory_len=%d web_search_len=%d",
             self._model,
             len(conversation_history or []),
             len(context_snippet),
             len(memory_snippet),
+            len(web_search_snippet),
         )
 
         response = await self._client.aio.models.generate_content(

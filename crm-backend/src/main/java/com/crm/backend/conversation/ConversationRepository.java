@@ -9,5 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface ConversationRepository extends JpaRepository<Conversation, UUID> {
-    List<Conversation> findBySessionIdAndDeletedAtIsNullOrderByCreatedAtAsc(UUID sessionId);
+    List<Conversation> findBySessionIdAndDeletedAtIsNullOrderByCreatedAtDesc(UUID sessionId);
 }

@@ -13,6 +13,7 @@ services:
       MEMORY_AGENT_URL: http://crm-memory-agent:8002
       CONTEXT_AGENT_URL: http://crm-context-agent:8003
       GUARDRAILS_URL: http://crm-guardrails:8004
+      WEB_SEARCH_AGENT_URL: http://crm-web-search-agent:8005
       REDIS_HOST: crm-redis
       REDIS_PORT: 6379
       OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
@@ -100,4 +101,29 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    restart: unless-stopped
+
+  crm-web-search-agent:
+    build:
+      context: .
+      dockerfile: web_search_agent/Dockerfile
+    container_name: crm-web-search-agent
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
+      ENVIRONMENT: local
+      REDIS_HOST: crm-redis
+      REDIS_PORT: 6379
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      # Google Custom Search Engine ID — get one at https://programmablesearchengine.google.com
+      # Uses the same GOOGLE_API_KEY as Gemini. Falls back to DuckDuckGo if not set.
+      GOOGLE_CSE_ID: ${GOOGLE_CSE_ID:-}
+    ports:
+      - "8005:8005"
+    networks: [crm-net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
     restart: unless-stopped
