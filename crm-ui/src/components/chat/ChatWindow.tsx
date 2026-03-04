@@ -18,6 +18,15 @@ export function ChatWindow() {
 
   useA2UIStream(currentSession?.sessionId ?? null)
 
+  // Load messages from backend on mount (or when conversation changes)
+  useEffect(() => {
+    if (!currentConversation) return
+    conversationApi
+      .getMessages(currentConversation.conversationId)
+      .then(({ content }) => setMessages(content))
+      .catch(console.error)
+  }, [currentConversation?.conversationId])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingContent])

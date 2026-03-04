@@ -65,7 +65,11 @@ export const useConversationStore = create<ConversationStore>()(
           state.messages = []
         }),
     })),
-    { name: 'iq-conversation' }
+    {
+      name: 'iq-conversation',
+      // Only persist IDs — messages are fetched from the backend on load
+      partialize: (state) => ({ currentConversation: state.currentConversation }),
+    }
   )
 )
 
