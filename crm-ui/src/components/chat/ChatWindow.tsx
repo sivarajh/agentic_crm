@@ -29,6 +29,9 @@ export function ChatWindow() {
   const isViewingHistory = viewingConversationId !== null &&
     viewingConversationId !== currentConversation?.conversationId
 
+  // The conversation we're actively looking at (history or current)
+  const activeConversationId = viewingConversationId ?? currentConversation?.conversationId
+
   // Load current conversation messages from backend
   useEffect(() => {
     if (!currentConversation || isViewingHistory) return
@@ -54,29 +57,40 @@ export function ChatWindow() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, historyMessages, streamingContent])
 
+  // Refresh messages when agent finishes — works for both current and history views
   useEffect(() => {
     if (agentStatus !== 'done') return
-    if (!currentConversation) return
-    conversationApi
-      .getMessages(currentConversation.conversationId)
-      .then(({ content }) => setMessages(content))
-      .catch(console.error)
-  }, [agentStatus, currentConversation, setMessages])
+    if (isViewingHistory && viewingConversationId) {
+      conversationApi
+        .getMessages(viewingConversationId)
+        .then(({ content }) => setHistoryMessages(content))
+        .catch(console.error)
+    } else if (currentConversation) {
+      conversationApi
+        .getMessages(currentConversation.conversationId)
+        .then(({ content }) => setMessages(content))
+        .catch(console.error)
+    }
+  }, [agentStatus])
 
   async function handleSend(text: string) {
-    if (!currentSession || !currentConversation || isSending) return
+    if (!currentSession || !activeConversationId || isSending) return
     setIsSending(true)
     try {
       const userMsg = await conversationApi.appendMessage(
-        currentConversation.conversationId,
+        activeConversationId,
         { role: 'user', content: text }
       )
-      addMessage(userMsg)
+      if (isViewingHistory) {
+        setHistoryMessages((prev) => [...prev, userMsg])
+      } else {
+        addMessage(userMsg)
+      }
       await agentApi.submitTask({
         sessionId: currentSession.sessionId,
         userId: currentSession.userId,
         intent: text,
-        payload: { conversationId: currentConversation.conversationId },
+        payload: { conversationId: activeConversationId },
       })
       clearStreamingContent()
       setAgentStatus('thinking')
@@ -88,7 +102,7 @@ export function ChatWindow() {
   }
 
   const displayedMessages = isViewingHistory ? historyMessages : messages
-  const inputDisabled = !currentSession || isViewingHistory || isSending ||
+  const inputDisabled = !currentSession || !activeConversationId || isSending ||
     agentStatus === 'thinking' || agentStatus === 'working'
 
   return (
@@ -104,7 +118,7 @@ export function ChatWindow() {
           }}
         >
           <Text styleAs="label" style={{ color: 'var(--salt-status-info-foreground)' }}>
-            Viewing past conversation (read-only) — click "Current" in the sidebar to return
+            Past conversation — you can continue chatting here
           </Text>
         </div>
       )}
@@ -129,13 +143,13 @@ export function ChatWindow() {
           {displayedMessages.map((msg) => (
             <MessageBubble key={msg.messageId} message={msg} />
           ))}
-          {!isViewingHistory && streamingContent && currentSession && (
+          {streamingContent && currentSession && (
             <MessageBubble
               message={{
                 messageId: 'streaming',
-                conversationId: currentConversation?.conversationId ?? '',
+                conversationId: activeConversationId ?? '',
                 sessionId: currentSession.sessionId,
-                turnId: messages.length + 1,
+                turnId: displayedMessages.length + 1,
                 role: 'agent',
                 content: streamingContent,
                 agentId: null,
@@ -169,7 +183,7 @@ export function ChatWindow() {
       )}
 
       {/* Status bar */}
-      {currentSession && !isViewingHistory && (
+      {currentSession && (
         <div
           style={{
             borderTop: '1px solid var(--salt-separable-borderColor)',
