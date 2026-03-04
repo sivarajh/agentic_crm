@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     otel_exporter_otlp_endpoint: str = Field(default="http://localhost:4317")
 
     # ─── Guardrails ──────────────────────────────────────────────────────────
-    guardrails_pii_enabled: bool = Field(default=True)
+    guardrails_pii_enabled: bool = Field(default=False)
     guardrails_injection_enabled: bool = Field(default=True)
     guardrails_toxicity_enabled: bool = Field(default=True)
 

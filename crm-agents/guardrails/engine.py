@@ -106,18 +106,19 @@ class GuardrailsEngine:
             all_violations: list[Violation] = []
             redacted = content
 
-            # PII redaction on output (always run)
-            pii_result = await self.pii_detector.check(content)
-            if not pii_result.passed:
-                for v in pii_result.violations:
-                    all_violations.append(Violation(
-                        type="OUTPUT_PII_DETECTED",
-                        severity=v.severity,
-                        detail=v.detail,
-                        metadata={"entity_type": v.type},
-                    ))
-                if pii_result.redacted_content:
-                    redacted = pii_result.redacted_content
+            # PII redaction on output (respects settings)
+            if settings.guardrails_pii_enabled:
+                pii_result = await self.pii_detector.check(content)
+                if not pii_result.passed:
+                    for v in pii_result.violations:
+                        all_violations.append(Violation(
+                            type="OUTPUT_PII_DETECTED",
+                            severity=v.severity,
+                            detail=v.detail,
+                            metadata={"entity_type": v.type},
+                        ))
+                    if pii_result.redacted_content:
+                        redacted = pii_result.redacted_content
 
             schema_valid = True
             if schema:
