@@ -15,6 +15,7 @@ export function SessionPanel() {
     viewingConversationId,
     setConversation,
     addToHistory,
+    removeFromHistory,
     setViewingConversation,
     clearMessages,
   } = useConversationStore()
@@ -133,23 +134,48 @@ export function SessionPanel() {
                 if (entry.conversationId === currentConversation?.conversationId) return null
                 const isViewing = viewingConversationId === entry.conversationId
                 return (
-                  <button
+                  <div
                     key={entry.conversationId}
-                    onClick={() => setViewingConversation(entry.conversationId)}
                     style={{
-                      all: 'unset',
-                      display: 'block',
-                      width: '100%',
-                      padding: 'var(--salt-spacing-75) var(--salt-spacing-100)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--salt-spacing-50)',
                       borderRadius: 'var(--salt-curve-100)',
-                      cursor: 'pointer',
                       background: isViewing ? 'var(--salt-status-info-background)' : 'transparent',
                       border: isViewing ? '1px solid var(--salt-status-info-borderColor)' : '1px solid transparent',
                       boxSizing: 'border-box',
                     }}
                   >
-                    <Text styleAs="label" style={{ fontSize: '12px' }}>{entry.label}</Text>
-                  </button>
+                    <button
+                      onClick={() => setViewingConversation(entry.conversationId)}
+                      style={{
+                        all: 'unset',
+                        flex: 1,
+                        padding: 'var(--salt-spacing-75) var(--salt-spacing-100)',
+                        cursor: 'pointer',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      <Text styleAs="label" style={{ fontSize: '12px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {entry.label}
+                      </Text>
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeFromHistory(entry.conversationId) }}
+                      title="Remove from history"
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        padding: '2px var(--salt-spacing-75)',
+                        color: 'var(--salt-content-secondary-foreground)',
+                        fontSize: '12px',
+                        lineHeight: 1,
+                        flexShrink: 0,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
                 )
               })}
             </StackLayout>

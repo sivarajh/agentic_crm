@@ -48,6 +48,7 @@ interface ConversationStore {
   messages: ConversationMessage[]
   setConversation: (conv: Conversation | null) => void
   addToHistory: (conv: Conversation, label?: string) => void
+  removeFromHistory: (conversationId: string) => void
   setViewingConversation: (id: string | null) => void
   addMessage: (msg: ConversationMessage) => void
   setMessages: (msgs: ConversationMessage[]) => void
@@ -78,6 +79,15 @@ export const useConversationStore = create<ConversationStore>()(
               createdAt: conv.createdAt ?? new Date().toISOString(),
               label: label ?? `Session ${new Date(conv.createdAt ?? Date.now()).toLocaleDateString()} ${new Date(conv.createdAt ?? Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
             })
+          }
+        }),
+      removeFromHistory: (conversationId) =>
+        set((state) => {
+          state.conversationHistory = state.conversationHistory.filter(
+            (h) => h.conversationId !== conversationId
+          )
+          if (state.viewingConversationId === conversationId) {
+            state.viewingConversationId = null
           }
         }),
       setViewingConversation: (id) =>
