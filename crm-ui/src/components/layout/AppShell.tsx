@@ -1,31 +1,59 @@
+import { Text, Pill, FlexLayout, StackLayout } from '@salt-ds/core'
 import { ChatWindow } from '../chat/ChatWindow'
 import { SessionPanel } from './SessionPanel'
 
 export function AppShell() {
   return (
-    <div className="flex h-screen bg-gray-50">
+    <FlexLayout direction="row" style={{ height: '100vh', overflow: 'hidden' }}>
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 border-r border-gray-200 bg-white">
-        <div className="flex h-16 items-center border-b border-gray-100 px-4">
-          <h1 className="text-lg font-bold text-gray-900">IQ Smart Assist</h1>
-          <span className="ml-2 rounded-full bg-blue-100 px-2 py-0.5 text-xs text-blue-700">
-            AI
-          </span>
-        </div>
+      <aside
+        style={{
+          width: 260,
+          flexShrink: 0,
+          borderRight: '1px solid var(--salt-separable-borderColor)',
+          background: 'var(--salt-container-primary-background)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <FlexLayout
+          align="center"
+          gap={1}
+          style={{
+            height: 56,
+            padding: '0 var(--salt-spacing-200)',
+            borderBottom: '1px solid var(--salt-separable-borderColor)',
+            flexShrink: 0,
+          }}
+        >
+          <Text styleAs="h4" style={{ margin: 0 }}>IQ Smart Assist</Text>
+          <Pill>AI</Pill>
+        </FlexLayout>
         <SessionPanel />
       </aside>
 
-      {/* Main content */}
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex h-16 items-center border-b border-gray-200 bg-white px-6">
-          <h2 className="text-base font-semibold text-gray-800">
-            IQ Smart Assistant
-          </h2>
-        </header>
-        <div className="flex-1 overflow-hidden">
+      {/* Main area */}
+      <StackLayout
+        direction="column"
+        gap={0}
+        style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}
+      >
+        <FlexLayout
+          align="center"
+          style={{
+            height: 56,
+            padding: '0 var(--salt-spacing-300)',
+            borderBottom: '1px solid var(--salt-separable-borderColor)',
+            background: 'var(--salt-container-primary-background)',
+            flexShrink: 0,
+          }}
+        >
+          <Text styleAs="h4" style={{ margin: 0 }}>IQ Smart Assistant</Text>
+        </FlexLayout>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
           <ChatWindow />
         </div>
-      </main>
-    </div>
+      </StackLayout>
+    </FlexLayout>
   )
 }

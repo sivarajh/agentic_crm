@@ -1,8 +1,8 @@
 import React from 'react'
+import { Text, Card, FlexLayout, StackLayout, Pill } from '@salt-ds/core'
 import type { ConversationMessage } from '@/types/conversation'
 import { isA2UIResponse } from '@/types/a2ui'
 import { A2UIRenderer } from '@/a2ui/A2UIRenderer'
-import { clsx } from 'clsx'
 
 interface Props {
   message: ConversationMessage
@@ -14,7 +14,6 @@ export function MessageBubble({ message, isStreaming }: Props) {
 
   let content: React.ReactNode
 
-  // Try to parse A2UI response from agent messages
   if (!isUser && message.content) {
     try {
       const parsed = JSON.parse(message.content)
@@ -28,37 +27,56 @@ export function MessageBubble({ message, isStreaming }: Props) {
 
   if (!content) {
     content = (
-      <p className="whitespace-pre-wrap text-sm">
+      <Text style={{ whiteSpace: 'pre-wrap' }}>
         {message.content}
         {isStreaming && (
-          <span className="ml-1 inline-block h-4 w-0.5 animate-pulse bg-current" />
+          <span
+            style={{
+              display: 'inline-block',
+              width: 2,
+              height: '1em',
+              background: 'currentColor',
+              marginLeft: 2,
+              verticalAlign: 'text-bottom',
+              animation: 'pulse 1s infinite',
+            }}
+          />
         )}
-      </p>
+      </Text>
+    )
+  }
+
+  if (isUser) {
+    return (
+      <FlexLayout justify="end" style={{ padding: '2px 0' }}>
+        <div
+          style={{
+            maxWidth: '75%',
+            background: 'var(--salt-palette-interact-primary-background)',
+            color: 'var(--salt-palette-interact-primary-foreground)',
+            borderRadius: 'var(--salt-curve-150)',
+            borderBottomRightRadius: 4,
+            padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+          }}
+        >
+          {content}
+        </div>
+      </FlexLayout>
     )
   }
 
   return (
-    <div
-      className={clsx(
-        'flex',
-        isUser ? 'justify-end' : 'justify-start'
-      )}
-    >
-      <div
-        className={clsx(
-          'max-w-[80%] rounded-2xl px-4 py-2.5',
-          isUser
-            ? 'bg-blue-600 text-white rounded-br-sm'
-            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
-        )}
-      >
-        {!isUser && message.agentId && (
-          <p className="mb-1 text-xs font-medium text-gray-500">
-            {message.agentId}
-          </p>
-        )}
-        {content}
+    <FlexLayout justify="start" style={{ padding: '2px 0' }}>
+      <div style={{ maxWidth: '85%' }}>
+        <Card style={{ borderRadius: 'var(--salt-curve-150)', borderBottomLeftRadius: 4 }}>
+          <StackLayout gap={1}>
+            {message.agentId && (
+              <Pill style={{ alignSelf: 'flex-start' }}>{message.agentId}</Pill>
+            )}
+            {content}
+          </StackLayout>
+        </Card>
       </div>
-    </div>
+    </FlexLayout>
   )
 }

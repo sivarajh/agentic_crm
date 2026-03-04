@@ -1,4 +1,8 @@
 import type { A2UIComponent, StatItem, KVRow } from '@/types/a2ui'
+import {
+  Text, Card, Button, Divider,
+  FlexLayout, StackLayout,
+} from '@salt-ds/core'
 
 interface RendererProps {
   components: A2UIComponent[]
@@ -6,102 +10,95 @@ interface RendererProps {
 
 /**
  * A2UI Renderer — interprets A2UI component descriptors returned by agents
- * and renders them as React elements using approved component catalog.
+ * and renders them as Salt Design System components.
  *
  * Security: Only renders from the approved component catalog.
  * No arbitrary code execution.
  */
 export function A2UIRenderer({ components }: RendererProps) {
   return (
-    <div className="a2ui-root space-y-3">
+    <StackLayout gap={2} style={{ width: '100%' }}>
       {components.map((comp, idx) => (
         <A2UIComponentRenderer key={comp.id ?? idx} component={comp} />
       ))}
-    </div>
+    </StackLayout>
   )
 }
 
-// ── Color maps ────────────────────────────────────────────────────────────────
+// ── Salt DS token-based color maps ───────────────────────────────────────────
 
-const BADGE_COLORS: Record<string, string> = {
-  green:  'bg-green-100 text-green-800 ring-green-200',
-  red:    'bg-red-100 text-red-800 ring-red-200',
-  blue:   'bg-blue-100 text-blue-800 ring-blue-200',
-  yellow: 'bg-yellow-100 text-yellow-800 ring-yellow-200',
-  purple: 'bg-purple-100 text-purple-800 ring-purple-200',
-  gray:   'bg-gray-100 text-gray-700 ring-gray-200',
-  orange: 'bg-orange-100 text-orange-800 ring-orange-200',
+const STATUS_BG: Record<string, string> = {
+  green:  'var(--salt-status-positive-background)',
+  red:    'var(--salt-status-negative-background)',
+  blue:   'var(--salt-status-info-background)',
+  yellow: 'var(--salt-status-warning-background)',
+  orange: 'var(--salt-status-warning-background)',
+  purple: '#f3f0ff',
+  gray:   'var(--salt-container-secondary-background)',
 }
 
-const SECTION_ACCENT: Record<string, string> = {
-  blue:   'border-l-blue-500 bg-blue-50/60',
-  green:  'border-l-green-500 bg-green-50/60',
-  red:    'border-l-red-500 bg-red-50/60',
-  yellow: 'border-l-yellow-500 bg-yellow-50/60',
-  purple: 'border-l-purple-500 bg-purple-50/60',
-  gray:   'border-l-gray-400 bg-gray-50/60',
-  orange: 'border-l-orange-500 bg-orange-50/60',
+const STATUS_FG: Record<string, string> = {
+  green:  'var(--salt-status-positive-foreground)',
+  red:    'var(--salt-status-negative-foreground)',
+  blue:   'var(--salt-status-info-foreground)',
+  yellow: 'var(--salt-status-warning-foreground)',
+  orange: 'var(--salt-status-warning-foreground)',
+  purple: '#7c3aed',
+  gray:   'var(--salt-content-secondary-foreground)',
 }
 
-const STAT_BG: Record<string, string> = {
-  green:  'bg-green-50 border-green-200',
-  red:    'bg-red-50 border-red-200',
-  blue:   'bg-blue-50 border-blue-200',
-  yellow: 'bg-yellow-50 border-yellow-200',
-  purple: 'bg-purple-50 border-purple-200',
-  gray:   'bg-gray-50 border-gray-200',
+const STATUS_BORDER: Record<string, string> = {
+  green:  'var(--salt-status-positive-borderColor)',
+  red:    'var(--salt-status-negative-borderColor)',
+  blue:   'var(--salt-status-info-borderColor)',
+  yellow: 'var(--salt-status-warning-borderColor)',
+  orange: 'var(--salt-status-warning-borderColor)',
+  purple: '#7c3aed',
+  gray:   'var(--salt-separable-borderColor)',
 }
 
-const STAT_VALUE: Record<string, string> = {
-  green:  'text-green-700',
-  red:    'text-red-700',
-  blue:   'text-blue-700',
-  yellow: 'text-yellow-700',
-  purple: 'text-purple-700',
-  gray:   'text-gray-700',
+const SECTION_LEFT_BORDER: Record<string, string> = {
+  green:  '3px solid var(--salt-status-positive-borderColor)',
+  red:    '3px solid var(--salt-status-negative-borderColor)',
+  blue:   '3px solid var(--salt-status-info-borderColor)',
+  yellow: '3px solid var(--salt-status-warning-borderColor)',
+  orange: '3px solid var(--salt-status-warning-borderColor)',
+  purple: '3px solid #7c3aed',
+  gray:   '3px solid var(--salt-separable-borderColor)',
 }
 
-const PROGRESS_BAR: Record<string, string> = {
-  green:  'bg-green-500',
-  red:    'bg-red-500',
-  blue:   'bg-blue-500',
-  yellow: 'bg-yellow-500',
-  purple: 'bg-purple-500',
-  gray:   'bg-gray-400',
-  orange: 'bg-orange-500',
-}
+// ── Helper: coloured status badge (Pill-like) ─────────────────────────────────
 
-// ── Helper sub-components ─────────────────────────────────────────────────────
-
-function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
-  const initials = name
-    .split(' ')
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('')
-
-  const sizes = { sm: 'h-7 w-7 text-xs', md: 'h-9 w-9 text-sm', lg: 'h-11 w-11 text-base' }
-  // Deterministic colour from name
-  const hues = [
-    'bg-blue-500', 'bg-purple-500', 'bg-green-500',
-    'bg-orange-500', 'bg-pink-500', 'bg-teal-500',
-  ]
-  const hue = hues[(name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % hues.length]
-
+function StatusBadge({ text, color = 'gray' }: { text: string; color?: string }) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white ${sizes[size]} ${hue}`}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        borderRadius: 'var(--salt-curve-1000)',
+        padding: '2px var(--salt-spacing-100)',
+        fontSize: 'var(--salt-text-label-fontSize)',
+        fontWeight: 600,
+        background: STATUS_BG[color] ?? STATUS_BG.gray,
+        color: STATUS_FG[color] ?? STATUS_FG.gray,
+        border: `1px solid ${STATUS_BORDER[color] ?? STATUS_BORDER.gray}`,
+        whiteSpace: 'nowrap' as const,
+      }}
     >
-      {initials}
+      {text}
     </span>
   )
 }
 
+// ── Helper: trend arrow ───────────────────────────────────────────────────────
+
 function TrendArrow({ trend }: { trend?: 'up' | 'down' | 'flat' }) {
-  if (!trend || trend === 'flat') return <span className="text-gray-400 text-xs">→</span>
+  if (!trend || trend === 'flat') {
+    return <Text style={{ color: 'var(--salt-content-secondary-foreground)', fontSize: 12 }}>→</Text>
+  }
   return trend === 'up'
-    ? <span className="text-green-600 text-xs font-bold">↑</span>
-    : <span className="text-red-600 text-xs font-bold">↓</span>
+    ? <Text style={{ color: 'var(--salt-status-positive-foreground)', fontSize: 12, fontWeight: 700 }}>↑</Text>
+    : <Text style={{ color: 'var(--salt-status-negative-foreground)', fontSize: 12, fontWeight: 700 }}>↓</Text>
 }
 
 // ── Main component renderer ───────────────────────────────────────────────────
@@ -111,94 +108,123 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
 
   switch (type) {
 
-    // ── Primitives ────────────────────────────────────────────────────────────
+    // ── text ─────────────────────────────────────────────────────────────────
 
     case 'text':
-      return <p className="text-sm text-gray-800 leading-relaxed">{content}</p>
+      return <Text>{content}</Text>
+
+    // ── markdown ─────────────────────────────────────────────────────────────
 
     case 'markdown':
       return (
-        <div className="prose prose-sm max-w-none">
-          <pre className="whitespace-pre-wrap text-sm font-sans text-gray-800 leading-relaxed">{content}</pre>
-        </div>
-      )
-
-    case 'divider':
-      return <hr className="border-gray-200 my-1" />
-
-    // ── Badge ─────────────────────────────────────────────────────────────────
-
-    case 'badge': {
-      const color = (props.color as string) ?? 'gray'
-      return (
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset ${
-            BADGE_COLORS[color] ?? BADGE_COLORS.gray
-          }`}
+        <Text
+          as="pre"
+          style={{
+            whiteSpace: 'pre-wrap',
+            fontFamily: 'inherit',
+            margin: 0,
+          }}
         >
           {content}
-        </span>
+        </Text>
       )
-    }
 
-    // ── Card ──────────────────────────────────────────────────────────────────
+    // ── divider ──────────────────────────────────────────────────────────────
+
+    case 'divider':
+      return <Divider />
+
+    // ── badge ─────────────────────────────────────────────────────────────────
+
+    case 'badge':
+      return (
+        <StatusBadge text={String(content ?? '')} color={(props.color as string) ?? 'gray'} />
+      )
+
+    // ── card ──────────────────────────────────────────────────────────────────
 
     case 'card':
       return (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-          {Boolean(props.title) && (
-            <h3 className="mb-3 font-semibold text-gray-900 text-sm">
-              {String(props.title)}
-            </h3>
-          )}
-          <div className="space-y-2">
+        <Card>
+          <StackLayout gap={1}>
+            {Boolean(props.title) && (
+              <Text styleAs="h4" style={{ margin: 0 }}>{String(props.title)}</Text>
+            )}
             {children.map((child, i) => (
               <A2UIComponentRenderer key={i} component={child} />
             ))}
-          </div>
-        </div>
+          </StackLayout>
+        </Card>
       )
 
-    // ── List ──────────────────────────────────────────────────────────────────
+    // ── list ──────────────────────────────────────────────────────────────────
 
     case 'list':
       return (
-        <ul className="space-y-1 text-sm text-gray-800">
+        <StackLayout gap={0}>
           {children.map((child, i) => (
-            <li key={i} className="flex gap-2 items-start">
-              <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-blue-500 shrink-0" />
+            <FlexLayout key={i} gap={1} align="start">
+              <span
+                style={{
+                  marginTop: 7,
+                  width: 5,
+                  height: 5,
+                  borderRadius: '50%',
+                  background: 'var(--salt-status-info-foreground)',
+                  flexShrink: 0,
+                  display: 'inline-block',
+                }}
+              />
               <A2UIComponentRenderer component={child} />
-            </li>
+            </FlexLayout>
           ))}
-        </ul>
+        </StackLayout>
       )
 
-    // ── Table ─────────────────────────────────────────────────────────────────
+    // ── table ─────────────────────────────────────────────────────────────────
 
     case 'table': {
       const headers = (props.headers as string[]) ?? []
       const rows = (props.rows as string[][]) ?? []
       return (
-        <div className="overflow-x-auto rounded-lg border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
-            <thead className="bg-gray-50">
-              <tr>
+        <div
+          style={{
+            overflowX: 'auto',
+            border: '1px solid var(--salt-separable-borderColor)',
+            borderRadius: 'var(--salt-curve-100)',
+          }}
+        >
+          <table style={{ minWidth: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--salt-container-secondary-background)' }}>
                 {headers.map((h, i) => (
                   <th
                     key={i}
-                    className="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                    style={{
+                      padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+                      textAlign: 'left',
+                      borderBottom: '1px solid var(--salt-separable-borderColor)',
+                    }}
                   >
-                    {h}
+                    <Text styleAs="label" style={{ fontWeight: 600 }}>{h}</Text>
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
+            <tbody>
               {rows.map((row, i) => (
-                <tr key={i} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={i}
+                  style={{
+                    borderBottom: i < rows.length - 1 ? '1px solid var(--salt-separable-borderColor)' : undefined,
+                  }}
+                >
                   {row.map((cell, j) => (
-                    <td key={j} className="px-4 py-2.5 text-gray-800">
-                      {cell}
+                    <td
+                      key={j}
+                      style={{ padding: 'var(--salt-spacing-100) var(--salt-spacing-200)' }}
+                    >
+                      <Text>{cell}</Text>
                     </td>
                   ))}
                 </tr>
@@ -209,92 +235,128 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
       )
     }
 
-    // ── Button ────────────────────────────────────────────────────────────────
+    // ── button ────────────────────────────────────────────────────────────────
 
     case 'button': {
       const variant = (props.variant as string) ?? 'primary'
-      const btnClasses =
-        variant === 'secondary'
-          ? 'rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50'
-          : 'rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700'
       return (
-        <button type="button" className={btnClasses}>
+        <Button
+          appearance={variant === 'secondary' ? 'bordered' : 'solid'}
+          sentiment={variant === 'secondary' ? 'neutral' : 'accented'}
+        >
           {content}
-        </button>
+        </Button>
       )
     }
 
-    // ── Form (read-only display) ──────────────────────────────────────────────
+    // ── form ──────────────────────────────────────────────────────────────────
 
     case 'form':
       return (
-        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
-          {Boolean(props.title) && (
-            <h3 className="font-semibold text-gray-900 text-sm">{String(props.title)}</h3>
-          )}
-          {children.map((child, i) => (
-            <A2UIComponentRenderer key={i} component={child} />
-          ))}
-        </div>
+        <Card>
+          <StackLayout gap={2}>
+            {Boolean(props.title) && (
+              <Text styleAs="h4" style={{ margin: 0 }}>{String(props.title)}</Text>
+            )}
+            {children.map((child, i) => (
+              <A2UIComponentRenderer key={i} component={child} />
+            ))}
+          </StackLayout>
+        </Card>
       )
 
-    // ── Chart (placeholder) ───────────────────────────────────────────────────
+    // ── chart (placeholder) ───────────────────────────────────────────────────
 
     case 'chart':
       return (
-        <div className="rounded-lg border border-dashed border-gray-300 p-4 text-center text-sm text-gray-500">
-          📊 {(props.title as string) ?? 'Chart'}
+        <div
+          style={{
+            border: '1px dashed var(--salt-separable-borderColor)',
+            borderRadius: 'var(--salt-curve-100)',
+            padding: 'var(--salt-spacing-200)',
+            textAlign: 'center',
+          }}
+        >
+          <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
+            📊 {(props.title as string) ?? 'Chart'}
+          </Text>
         </div>
       )
 
-    // ── CRM: Section ──────────────────────────────────────────────────────────
+    // ── CRM: section ─────────────────────────────────────────────────────────
     // props: { title, color?, icon? }
 
     case 'section': {
       const color = (props.color as string) ?? 'blue'
       const icon = props.icon as string | undefined
-      const accent = SECTION_ACCENT[color] ?? SECTION_ACCENT.blue
 
       return (
-        <div className={`rounded-xl border-l-4 px-4 py-3 ${accent}`}>
+        <div
+          style={{
+            borderLeft: SECTION_LEFT_BORDER[color] ?? SECTION_LEFT_BORDER.blue,
+            background: STATUS_BG[color] ?? STATUS_BG.blue,
+            borderRadius: `0 var(--salt-curve-100) var(--salt-curve-100) 0`,
+            padding: 'var(--salt-spacing-150) var(--salt-spacing-200)',
+          }}
+        >
           {Boolean(props.title) && (
-            <h3 className="mb-2.5 flex items-center gap-1.5 text-sm font-semibold text-gray-800">
-              {icon && <span>{icon}</span>}
-              {String(props.title)}
-            </h3>
+            <FlexLayout gap={1} align="center" style={{ marginBottom: 'var(--salt-spacing-100)' }}>
+              {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
+              <Text styleAs="h4" style={{ margin: 0, color: STATUS_FG[color] ?? STATUS_FG.blue }}>
+                {String(props.title)}
+              </Text>
+            </FlexLayout>
           )}
-          <div className="space-y-2">
+          <StackLayout gap={1}>
             {children.map((child, i) => (
               <A2UIComponentRenderer key={i} component={child} />
             ))}
-          </div>
+          </StackLayout>
         </div>
       )
     }
 
-    // ── CRM: Stat Grid ────────────────────────────────────────────────────────
+    // ── CRM: stat_grid ────────────────────────────────────────────────────────
     // props: { stats: StatItem[] }
 
     case 'stat_grid': {
       const stats = (props.stats as StatItem[]) ?? []
       return (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+            gap: 'var(--salt-spacing-100)',
+          }}
+        >
           {stats.map((stat, i) => {
             const color = stat.color ?? 'blue'
             return (
               <div
                 key={i}
-                className={`rounded-xl border p-3 ${STAT_BG[color] ?? STAT_BG.blue}`}
+                style={{
+                  background: STATUS_BG[color] ?? STATUS_BG.blue,
+                  border: `1px solid ${STATUS_BORDER[color] ?? STATUS_BORDER.blue}`,
+                  borderRadius: 'var(--salt-curve-100)',
+                  padding: 'var(--salt-spacing-150)',
+                }}
               >
-                <p className="text-xs text-gray-500 font-medium truncate">{stat.label}</p>
-                <div className="mt-1 flex items-end justify-between gap-1">
-                  <p className={`text-lg font-bold leading-tight ${STAT_VALUE[color] ?? STAT_VALUE.blue}`}>
+                <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)', display: 'block' }}>
+                  {stat.label}
+                </Text>
+                <FlexLayout align="end" justify="space-between" style={{ marginTop: 4 }}>
+                  <Text
+                    styleAs="h3"
+                    style={{ margin: 0, color: STATUS_FG[color] ?? STATUS_FG.blue, lineHeight: 1.2 }}
+                  >
                     {stat.value}
-                  </p>
+                  </Text>
                   {stat.trend && <TrendArrow trend={stat.trend} />}
-                </div>
+                </FlexLayout>
                 {stat.sublabel && (
-                  <p className="mt-0.5 text-xs text-gray-400 truncate">{stat.sublabel}</p>
+                  <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)', marginTop: 2 }}>
+                    {stat.sublabel}
+                  </Text>
                 )}
               </div>
             )
@@ -303,46 +365,64 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
       )
     }
 
-    // ── CRM: Key-Value Table ──────────────────────────────────────────────────
+    // ── CRM: kv_table ─────────────────────────────────────────────────────────
     // props: { rows: KVRow[] }
 
     case 'kv_table': {
       const rows = (props.rows as KVRow[]) ?? []
       return (
-        <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
-          <dl className="divide-y divide-gray-100">
-            {rows.map((row, i) => (
-              <div
-                key={i}
-                className="flex items-center justify-between px-4 py-2.5 gap-4 hover:bg-gray-50 transition-colors"
+        <div
+          style={{
+            border: '1px solid var(--salt-separable-borderColor)',
+            borderRadius: 'var(--salt-curve-100)',
+            background: 'var(--salt-container-primary-background)',
+            overflow: 'hidden',
+          }}
+        >
+          {rows.map((row, i) => (
+            <FlexLayout
+              key={i}
+              justify="space-between"
+              align="center"
+              gap={2}
+              style={{
+                padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+                borderBottom: i < rows.length - 1 ? '1px solid var(--salt-separable-borderColor)' : undefined,
+              }}
+            >
+              <Text
+                styleAs="label"
+                style={{
+                  color: 'var(--salt-content-secondary-foreground)',
+                  flexShrink: 0,
+                  width: 140,
+                }}
               >
-                <dt className="text-xs font-medium text-gray-500 shrink-0 w-36">{row.key}</dt>
-                <dd className="flex items-center gap-2 min-w-0">
-                  <span
-                    className={`text-sm text-gray-800 truncate ${
-                      row.monospace ? 'font-mono text-xs' : ''
-                    }`}
-                  >
-                    {row.value}
-                  </span>
-                  {row.badge && (
-                    <span
-                      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${
-                        BADGE_COLORS[row.badge.color ?? 'gray'] ?? BADGE_COLORS.gray
-                      }`}
-                    >
-                      {row.badge.text}
-                    </span>
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
+                {row.key}
+              </Text>
+              <FlexLayout align="center" gap={1} style={{ minWidth: 0 }}>
+                <Text
+                  style={{
+                    fontFamily: row.monospace ? 'var(--salt-text-code-fontFamily)' : undefined,
+                    fontSize: row.monospace ? 11 : undefined,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {row.value}
+                </Text>
+                {row.badge && (
+                  <StatusBadge text={row.badge.text} color={row.badge.color ?? 'gray'} />
+                )}
+              </FlexLayout>
+            </FlexLayout>
+          ))}
         </div>
       )
     }
 
-    // ── CRM: Progress / Score Bar ─────────────────────────────────────────────
+    // ── CRM: progress ─────────────────────────────────────────────────────────
     // props: { label, value (0-100), color?, sublabel? }
 
     case 'progress': {
@@ -350,30 +430,50 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
       const color = (props.color as string) ?? 'blue'
       const label = props.label as string | undefined
       const sublabel = props.sublabel as string | undefined
-      const bar = PROGRESS_BAR[color] ?? PROGRESS_BAR.blue
 
       return (
-        <div className="space-y-1">
-          <div className="flex items-center justify-between text-xs">
-            {label && <span className="font-medium text-gray-700">{label}</span>}
-            <span className={`font-bold tabular-nums ${STAT_VALUE[color] ?? STAT_VALUE.blue}`}>
+        <StackLayout gap={0}>
+          <FlexLayout justify="space-between" align="center">
+            {label && (
+              <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>
+                {label}
+              </Text>
+            )}
+            <Text styleAs="label" style={{ color: STATUS_FG[color] ?? STATUS_FG.blue, fontWeight: 700 }}>
               {value}%
-            </span>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
+            </Text>
+          </FlexLayout>
+          {/* Custom progress bar using Salt tokens */}
+          <div
+            style={{
+              height: 6,
+              width: '100%',
+              borderRadius: 'var(--salt-curve-1000)',
+              background: 'var(--salt-container-secondary-background)',
+              overflow: 'hidden',
+              marginTop: 4,
+            }}
+          >
             <div
-              className={`h-2 rounded-full transition-all duration-500 ${bar}`}
-              style={{ width: `${value}%` }}
+              style={{
+                height: '100%',
+                width: `${value}%`,
+                borderRadius: 'var(--salt-curve-1000)',
+                background: STATUS_FG[color] ?? STATUS_FG.blue,
+                transition: 'width 0.5s ease',
+              }}
             />
           </div>
           {sublabel && (
-            <p className="text-xs text-gray-400">{sublabel}</p>
+            <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)', marginTop: 2 }}>
+              {sublabel}
+            </Text>
           )}
-        </div>
+        </StackLayout>
       )
     }
 
-    // ── CRM: Contact Chip ─────────────────────────────────────────────────────
+    // ── CRM: contact_chip ─────────────────────────────────────────────────────
     // props: { name, title?, company?, email?, phone? }
 
     case 'contact_chip': {
@@ -383,28 +483,61 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
       const email = props.email as string | undefined
       const phone = props.phone as string | undefined
 
+      const initials = name
+        .split(' ')
+        .slice(0, 2)
+        .map((w) => w[0]?.toUpperCase() ?? '')
+        .join('')
+
+      // Deterministic background from Salt DS categorical palette tokens
+      const catIdx = ((name.charCodeAt(0) + (name.charCodeAt(1) || 0)) % 20) + 1
+
       return (
-        <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white px-3 py-2.5 shadow-sm">
-          <Avatar name={name} size="md" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
-            {(title || company) && (
-              <p className="text-xs text-gray-500 truncate">
-                {[title, company].filter(Boolean).join(' · ')}
-              </p>
-            )}
-            {(email || phone) && (
-              <div className="mt-0.5 flex gap-3">
-                {email && (
-                  <span className="text-xs text-blue-600 truncate">{email}</span>
-                )}
-                {phone && (
-                  <span className="text-xs text-gray-500">{phone}</span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <Card>
+          <FlexLayout gap={2} align="center">
+            {/* Custom avatar circle using Salt DS categorical tokens */}
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: `var(--salt-palette-categorical-${catIdx})`,
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: 13,
+                flexShrink: 0,
+                userSelect: 'none',
+              }}
+            >
+              {initials}
+            </div>
+            <StackLayout gap={0} style={{ minWidth: 0, flex: 1 }}>
+              <Text styleAs="h4" style={{ margin: 0 }}>{name}</Text>
+              {(title || company) && (
+                <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>
+                  {[title, company].filter(Boolean).join(' · ')}
+                </Text>
+              )}
+              {(email || phone) && (
+                <FlexLayout gap={2} style={{ marginTop: 2 }}>
+                  {email && (
+                    <Text styleAs="label" style={{ color: 'var(--salt-status-info-foreground)' }}>
+                      {email}
+                    </Text>
+                  )}
+                  {phone && (
+                    <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>
+                      {phone}
+                    </Text>
+                  )}
+                </FlexLayout>
+              )}
+            </StackLayout>
+          </FlexLayout>
+        </Card>
       )
     }
 

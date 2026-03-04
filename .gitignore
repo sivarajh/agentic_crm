@@ -27,6 +27,10 @@ node_modules/
 crm-ui/dist/
 .npm
 *.tsbuildinfo
+crm-ui/src/**/*.js
+
+# ── Claude ────────────────────────────────────────────────────────────────────
+.claude/
 
 # ── Java / Maven ──────────────────────────────────────────────────────────────
 crm-backend/target/

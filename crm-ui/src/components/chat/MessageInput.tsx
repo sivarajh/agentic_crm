@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react'
-import { clsx } from 'clsx'
+import { Button, FlexLayout } from '@salt-ds/core'
 
 interface Props {
   onSend: (text: string) => void
@@ -7,11 +7,7 @@ interface Props {
   placeholder?: string
 }
 
-export function MessageInput({
-  onSend,
-  disabled,
-  placeholder = 'Ask the IQ Smart Assistant...',
-}: Props) {
+export function MessageInput({ onSend, disabled, placeholder = 'Ask the IQ Smart Assistant…' }: Props) {
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -31,7 +27,7 @@ export function MessageInput({
   }
 
   return (
-    <div className="flex items-end gap-2">
+    <FlexLayout align="end" gap={1} style={{ width: '100%' }}>
       <textarea
         ref={textareaRef}
         value={value}
@@ -40,33 +36,38 @@ export function MessageInput({
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
-        className={clsx(
-          'flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3',
-          'text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
-          'disabled:cursor-not-allowed disabled:opacity-50',
-          'max-h-32 overflow-y-auto'
-        )}
+        className="salt-message-input"
         style={{
-          height: 'auto',
-          minHeight: '44px',
+          flex: 1,
+          resize: 'none',
+          minHeight: 40,
+          maxHeight: 128,
+          overflowY: 'auto',
+          padding: 'var(--salt-spacing-100) var(--salt-spacing-150)',
+          border: '1px solid var(--salt-editable-borderColor)',
+          borderRadius: 'var(--salt-curve-100)',
+          fontFamily: 'var(--salt-text-fontFamily)',
+          fontSize: 'var(--salt-text-fontSize)',
+          color: 'var(--salt-content-primary-foreground)',
+          background: 'var(--salt-editable-primary-background)',
+          outline: 'none',
         }}
+        onFocus={(e) => { e.target.style.borderColor = 'var(--salt-editable-focused-borderColor)' }}
+        onBlur={(e) => { e.target.style.borderColor = 'var(--salt-editable-borderColor)' }}
         onInput={(e) => {
-          const target = e.target as HTMLTextAreaElement
-          target.style.height = 'auto'
-          target.style.height = Math.min(target.scrollHeight, 128) + 'px'
+          const t = e.target as HTMLTextAreaElement
+          t.style.height = 'auto'
+          t.style.height = Math.min(t.scrollHeight, 128) + 'px'
         }}
       />
-      <button
+      <Button
+        appearance="solid"
+        sentiment="accented"
         onClick={submit}
         disabled={disabled || !value.trim()}
-        className={clsx(
-          'flex-shrink-0 rounded-xl bg-blue-600 px-4 py-3 text-sm font-medium text-white',
-          'transition-colors hover:bg-blue-700',
-          'disabled:cursor-not-allowed disabled:opacity-50'
-        )}
       >
         Send
-      </button>
-    </div>
+      </Button>
+    </FlexLayout>
   )
 }

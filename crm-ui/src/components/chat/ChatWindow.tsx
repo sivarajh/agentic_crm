@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Text, StackLayout, FlexLayout } from '@salt-ds/core'
 import { MessageBubble } from './MessageBubble'
 import { MessageInput } from './MessageInput'
 import { AgentStatusIndicator } from './AgentStatusIndicator'
@@ -15,15 +16,12 @@ export function ChatWindow() {
   const { messages, currentConversation, addMessage, setMessages } = useConversationStore()
   const { agentStatus, streamingContent, setAgentStatus, clearStreamingContent } = useAgentStore()
 
-  // Open SSE stream when session is active
   useA2UIStream(currentSession?.sessionId ?? null)
 
-  // Auto-scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, streamingContent])
 
-  // Refresh messages from backend when agent finishes (task.completed → 'done')
   useEffect(() => {
     if (agentStatus !== 'done') return
     if (!currentConversation) return
@@ -35,24 +33,19 @@ export function ChatWindow() {
 
   async function handleSend(text: string) {
     if (!currentSession || !currentConversation || isSending) return
-
     setIsSending(true)
     try {
-      // 1. Append user message to conversation history
       const userMsg = await conversationApi.appendMessage(
         currentConversation.conversationId,
         { role: 'user', content: text }
       )
       addMessage(userMsg)
-
-      // 2. Submit task to orchestrator via backend gateway
       await agentApi.submitTask({
         sessionId: currentSession.sessionId,
         userId: currentSession.userId,
         intent: text,
         payload: { conversationId: currentConversation.conversationId },
       })
-      // 3. Optimistically show thinking state — SSE will update to working/done
       clearStreamingContent()
       setAgentStatus('thinking')
     } catch (err) {
@@ -64,59 +57,78 @@ export function ChatWindow() {
 
   if (!currentSession) {
     return (
-      <div className="flex h-full items-center justify-center text-gray-400">
-        <p>No active session. Create a session to start chatting.</p>
-      </div>
+      <FlexLayout
+        align="center"
+        justify="center"
+        style={{ height: '100%' }}
+      >
+        <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
+          No active session. Create a session to start chatting.
+        </Text>
+      </FlexLayout>
     )
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <StackLayout direction="column" gap={0} style={{ height: '100%' }}>
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div style={{ flex: 1, overflowY: 'auto', padding: 'var(--salt-spacing-200)' }}>
         {messages.length === 0 && (
-          <p className="text-center text-sm text-gray-400 mt-8">
-            Start a conversation with your IQ Smart Assistant.
-          </p>
+          <FlexLayout justify="center" style={{ marginTop: 'var(--salt-spacing-400)' }}>
+            <Text style={{ color: 'var(--salt-content-secondary-foreground)' }}>
+              Start a conversation with your IQ Smart Assistant.
+            </Text>
+          </FlexLayout>
         )}
-        {messages.map((msg) => (
-          <MessageBubble key={msg.messageId} message={msg} />
-        ))}
-        {/* Streaming indicator */}
-        {streamingContent && (
-          <MessageBubble
-            message={{
-              messageId: 'streaming',
-              conversationId: currentConversation?.conversationId ?? '',
-              sessionId: currentSession.sessionId,
-              turnId: messages.length + 1,
-              role: 'agent',
-              content: streamingContent,
-              agentId: null,
-              tokenCount: null,
-              traceId: null,
-              spanId: null,
-              metadata: {},
-              createdAt: new Date().toISOString(),
-            }}
-            isStreaming
-          />
-        )}
+        <StackLayout gap={1}>
+          {messages.map((msg) => (
+            <MessageBubble key={msg.messageId} message={msg} />
+          ))}
+          {streamingContent && (
+            <MessageBubble
+              message={{
+                messageId: 'streaming',
+                conversationId: currentConversation?.conversationId ?? '',
+                sessionId: currentSession.sessionId,
+                turnId: messages.length + 1,
+                role: 'agent',
+                content: streamingContent,
+                agentId: null,
+                tokenCount: null,
+                traceId: null,
+                spanId: null,
+                metadata: {},
+                createdAt: new Date().toISOString(),
+              }}
+              isStreaming
+            />
+          )}
+        </StackLayout>
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Agent status */}
-      <div className="border-t border-gray-100 px-4 py-1">
+      {/* Status bar */}
+      <div
+        style={{
+          borderTop: '1px solid var(--salt-separable-borderColor)',
+          padding: 'var(--salt-spacing-50) var(--salt-spacing-200)',
+        }}
+      >
         <AgentStatusIndicator status={agentStatus} />
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-200 p-4">
+      <div
+        style={{
+          borderTop: '1px solid var(--salt-separable-borderColor)',
+          padding: 'var(--salt-spacing-150) var(--salt-spacing-200)',
+        }}
+      >
         <MessageInput
           onSend={handleSend}
           disabled={isSending || agentStatus === 'thinking' || agentStatus === 'working'}
         />
       </div>
-    </div>
+    </StackLayout>
   )
 }

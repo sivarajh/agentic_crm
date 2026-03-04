@@ -1,10 +1,9 @@
 import { useState } from 'react'
+import { Button, Text, StackLayout, FlexLayout } from '@salt-ds/core'
 import { useSessionStore, useConversationStore, useAgentStore } from '@/store'
 import { sessionApi } from '@/api/sessionApi'
 import { conversationApi } from '@/api/conversationApi'
-import { clsx } from 'clsx'
 
-// Hardcoded demo userId; replace with auth context in production
 const DEMO_USER_ID = '00000000-0000-0000-0000-000000000001'
 
 export function SessionPanel() {
@@ -21,7 +20,6 @@ export function SessionPanel() {
         agentId: 'IQ Smart Assistant',
       })
       setSession(session)
-
       const conversation = await conversationApi.create(session.sessionId)
       setConversation(conversation)
       clearMessages()
@@ -38,48 +36,51 @@ export function SessionPanel() {
     if (!currentSession) return
     try {
       await sessionApi.terminate(currentSession.sessionId)
-    } catch (_) {
-      // ignore
-    }
+    } catch (_) { /* ignore */ }
     setSession(null)
     setConversation(null)
     clearMessages()
   }
 
   return (
-    <div className="p-4 space-y-4">
+    <StackLayout gap={2} style={{ padding: 'var(--salt-spacing-200)', flex: 1 }}>
       {currentSession ? (
-        <div className="space-y-3">
-          <div className="rounded-lg bg-green-50 p-3">
-            <p className="text-xs font-medium text-green-700">Active Session</p>
-            <p className="mt-1 font-mono text-xs text-green-600 truncate">
-              {currentSession.sessionId.slice(0, 8)}...
-            </p>
-          </div>
-          <button
-            onClick={endSession}
-            className="w-full rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 hover:bg-red-100"
+        <StackLayout gap={1}>
+          <div
+            style={{
+              borderRadius: 'var(--salt-curve-100)',
+              background: 'var(--salt-status-positive-background)',
+              border: '1px solid var(--salt-status-positive-borderColor)',
+              padding: 'var(--salt-spacing-100) var(--salt-spacing-150)',
+            }}
           >
+            <Text styleAs="label" style={{ color: 'var(--salt-status-positive-foreground)', fontWeight: 600 }}>
+              Active Session
+            </Text>
+            <Text styleAs="code" style={{ display: 'block', fontSize: '11px', marginTop: 2, color: 'var(--salt-status-positive-foreground)' }}>
+              {currentSession.sessionId.slice(0, 8)}…
+            </Text>
+          </div>
+          <Button appearance="bordered" sentiment="negative" onClick={endSession} style={{ width: '100%' }}>
             End Session
-          </button>
-        </div>
+          </Button>
+        </StackLayout>
       ) : (
-        <button
-          onClick={startNewSession}
-          disabled={isCreating}
-          className={clsx(
-            'w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white',
-            'hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
-          )}
-        >
-          {isCreating ? 'Starting...' : 'New Session'}
-        </button>
+        <Button appearance="solid" sentiment="accented" onClick={startNewSession} disabled={isCreating} style={{ width: '100%' }}>
+          {isCreating ? 'Starting…' : 'New Session'}
+        </Button>
       )}
 
-      <div className="text-xs text-gray-400 space-y-1">
-        <p>User: {DEMO_USER_ID.slice(0, 8)}...</p>
-        <p>Agent: IQ Smart Assistant</p>
-      </div>
-    </div>
+      <StackLayout gap={0}>
+        <FlexLayout gap={1}>
+          <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>User:</Text>
+          <Text styleAs="code" style={{ fontSize: '11px' }}>{DEMO_USER_ID.slice(0, 8)}…</Text>
+        </FlexLayout>
+        <FlexLayout gap={1}>
+          <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>Agent:</Text>
+          <Text styleAs="label">IQ Smart Assistant</Text>
+        </FlexLayout>
+      </StackLayout>
+    </StackLayout>
   )
 }
