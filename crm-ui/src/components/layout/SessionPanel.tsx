@@ -72,10 +72,7 @@ export function SessionPanel() {
             }}
           >
             <Text styleAs="label" style={{ color: 'var(--salt-status-positive-foreground)', fontWeight: 600 }}>
-              Active Session
-            </Text>
-            <Text styleAs="code" style={{ display: 'block', fontSize: '11px', marginTop: 2, color: 'var(--salt-status-positive-foreground)' }}>
-              {currentSession.sessionId.slice(0, 8)}…
+              ● Active Session
             </Text>
           </div>
         )}
@@ -127,9 +124,6 @@ export function SessionPanel() {
                   }}
                 >
                   <Text styleAs="label" style={{ fontSize: '12px', fontWeight: 600 }}>Current</Text>
-                  <Text styleAs="code" style={{ display: 'block', fontSize: '10px', color: 'var(--salt-content-secondary-foreground)' }}>
-                    {currentConversation.conversationId.slice(0, 8)}…
-                  </Text>
                 </button>
               )}
 
@@ -155,9 +149,6 @@ export function SessionPanel() {
                     }}
                   >
                     <Text styleAs="label" style={{ fontSize: '12px' }}>{entry.label}</Text>
-                    <Text styleAs="code" style={{ display: 'block', fontSize: '10px', color: 'var(--salt-content-secondary-foreground)' }}>
-                      {entry.conversationId.slice(0, 8)}…
-                    </Text>
                   </button>
                 )
               })}
