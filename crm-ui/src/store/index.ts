@@ -109,10 +109,9 @@ export const useConversationStore = create<ConversationStore>()(
     })),
     {
       name: 'iq-conversation',
+      // Only persist the active conversation ID — history is loaded from backend
       partialize: (state) => ({
         currentConversation: state.currentConversation,
-        conversationHistory: state.conversationHistory,
-        viewingConversationId: state.viewingConversationId,
       }),
     }
   )

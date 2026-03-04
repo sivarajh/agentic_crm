@@ -21,12 +21,30 @@ export function SessionPanel() {
   } = useConversationStore()
   const { setAgentStatus, clearStreamingContent } = useAgentStore()
 
-  // Validate persisted session on mount
+  // Validate persisted session + load full conversation history from backend on mount
   useEffect(() => {
-    if (!currentSession) return
-    sessionApi.get(currentSession.sessionId).then((s) => {
-      if (s.state !== 'ACTIVE') setSession(null)
-    }).catch(() => setSession(null))
+    // Validate current session
+    if (currentSession) {
+      sessionApi.get(currentSession.sessionId).then((s) => {
+        if (s.state !== 'ACTIVE') setSession(null)
+      }).catch(() => setSession(null))
+    }
+
+    // Load all past conversations from backend (source of truth)
+    async function loadHistory() {
+      try {
+        const { content: sessions } = await sessionApi.list(DEMO_USER_ID)
+        for (const session of sessions) {
+          const conversations = await conversationApi.listBySession(session.sessionId)
+          for (const conv of conversations) {
+            addToHistory(conv)
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load conversation history from backend:', e)
+      }
+    }
+    loadHistory()
   }, [])
 
   async function startNewSession() {

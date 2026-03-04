@@ -15,4 +15,7 @@ export const sessionApi = {
 
   terminate: (sessionId: string): Promise<void> =>
     apiClient.delete(`/sessions/${sessionId}`).then(() => undefined),
+
+  list: (userId: string, size = 50): Promise<{ content: Session[] }> =>
+    apiClient.get('/sessions', { params: { userId, size } }).then((r) => r.data),
 }
