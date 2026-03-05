@@ -130,7 +130,7 @@ export function ChatWindow() {
         {displayedMessages.length === 0 && !currentSession && !isViewingHistory && (
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: 80 }}>
             <span style={{ color: 'var(--cgpt-text-secondary)', fontSize: 14 }}>
-              Create a session to start chatting with IQ Smart Assistant.
+              Create a session to start chatting with iQ Smart Assistant.
             </span>
           </div>
         )}
@@ -141,7 +141,7 @@ export function ChatWindow() {
                 width: 52,
                 height: 52,
                 borderRadius: '50%',
-                background: 'var(--cgpt-accent)',
+                background: '#2563eb',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -150,7 +150,7 @@ export function ChatWindow() {
                 color: '#fff',
               }}
             >
-              IQ
+              iQ
             </div>
             <span style={{ color: 'var(--cgpt-text-primary)', fontSize: 22, fontWeight: 600 }}>
               How can I help you today?
@@ -224,7 +224,7 @@ export function ChatWindow() {
         </div>
         <div style={{ textAlign: 'center', marginTop: 8 }}>
           <span style={{ fontSize: 11, color: 'var(--cgpt-text-muted)' }}>
-            IQ Smart Assistant can make mistakes. Verify important information.
+            iQ Smart Assistant can make mistakes. Verify important information.
           </span>
         </div>
       </div>

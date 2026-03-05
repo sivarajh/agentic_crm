@@ -141,11 +141,13 @@ interface AgentStore {
   agentStatus: 'idle' | 'thinking' | 'working' | 'done' | 'error'
   lastStreamEvent: StreamEvent | null
   streamingContent: string
+  pendingTemplate: string | null
   setTask: (task: AgentTask | null) => void
   setAgentStatus: (status: AgentStore['agentStatus']) => void
   setLastStreamEvent: (event: StreamEvent | null) => void
   appendStreamingContent: (chunk: string) => void
   clearStreamingContent: () => void
+  setPendingTemplate: (text: string | null) => void
 }
 
 export const useAgentStore = create<AgentStore>()(
@@ -154,6 +156,7 @@ export const useAgentStore = create<AgentStore>()(
     agentStatus: 'idle',
     lastStreamEvent: null,
     streamingContent: '',
+    pendingTemplate: null,
     setTask: (task) =>
       set((state) => {
         state.currentTask = task
@@ -173,6 +176,10 @@ export const useAgentStore = create<AgentStore>()(
     clearStreamingContent: () =>
       set((state) => {
         state.streamingContent = ''
+      }),
+    setPendingTemplate: (text) =>
+      set((state) => {
+        state.pendingTemplate = text
       }),
   }))
 )

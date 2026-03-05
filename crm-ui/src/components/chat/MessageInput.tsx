@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
+import { useAgentStore } from '@/store'
 
 interface Props {
   onSend: (text: string) => void
@@ -6,10 +7,27 @@ interface Props {
   placeholder?: string
 }
 
-export function MessageInput({ onSend, disabled, placeholder = 'Message IQ Smart Assistant…' }: Props) {
+export function MessageInput({ onSend, disabled, placeholder = 'Message iQ Smart Assistant…' }: Props) {
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [focused, setFocused] = useState(false)
+  const { pendingTemplate, setPendingTemplate } = useAgentStore()
+
+  // When a template is selected from the panel, prefill the textarea
+  useEffect(() => {
+    if (!pendingTemplate) return
+    setValue(pendingTemplate)
+    setPendingTemplate(null)
+    // Auto-resize and focus
+    requestAnimationFrame(() => {
+      const t = textareaRef.current
+      if (t) {
+        t.style.height = 'auto'
+        t.style.height = Math.min(t.scrollHeight, 200) + 'px'
+        t.focus()
+      }
+    })
+  }, [pendingTemplate])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {

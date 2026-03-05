@@ -91,7 +91,7 @@ export function MessageBubble({ message, isStreaming }: Props) {
           width: 30,
           height: 30,
           borderRadius: '50%',
-          background: 'var(--cgpt-accent)',
+          background: '#2563eb',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -102,7 +102,7 @@ export function MessageBubble({ message, isStreaming }: Props) {
           marginTop: 2,
         }}
       >
-        IQ
+        iQ
       </div>
 
       {/* Content */}

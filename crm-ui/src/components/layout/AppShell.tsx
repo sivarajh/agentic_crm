@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ChatWindow } from '../chat/ChatWindow'
 import { SessionPanel } from './SessionPanel'
+import { PromptTemplatesPanel } from './PromptTemplatesPanel'
 import { useConversationStore, useThemeStore } from '@/store'
 
 export function AppShell() {
@@ -21,6 +22,7 @@ export function AppShell() {
   }, [theme])
 
   const isDark = theme === 'dark'
+  const [showTemplates, setShowTemplates] = useState(true)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'row', height: '100vh', overflow: 'hidden', background: 'var(--cgpt-main-bg)' }}>
@@ -52,7 +54,7 @@ export function AppShell() {
               width: 28,
               height: 28,
               borderRadius: '50%',
-              background: 'var(--cgpt-accent)',
+              background: '#2563eb',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -62,10 +64,10 @@ export function AppShell() {
               flexShrink: 0,
             }}
           >
-            IQ
+            iQ
           </div>
           <span style={{ color: 'var(--cgpt-text-primary)', fontWeight: 600, fontSize: 15 }}>
-            IQ Smart Assist
+            iQ Smart Assist
           </span>
         </div>
 
@@ -88,47 +90,74 @@ export function AppShell() {
           }}
         >
           <span style={{ color: 'var(--cgpt-text-primary)', fontWeight: 600, fontSize: 15 }}>
-            IQ Smart Assistant
+            iQ Smart Assistant
           </span>
 
-          {/* Theme toggle button */}
-          <button
-            onClick={toggleTheme}
-            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            style={{
-              all: 'unset',
-              cursor: 'pointer',
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              border: '1px solid var(--cgpt-sidebar-border)',
-              background: 'transparent',
-              color: 'var(--cgpt-text-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 17,
-              transition: 'background 0.15s, color 0.15s',
-            }}
-            onMouseEnter={(e) => {
-              const el = e.currentTarget as HTMLButtonElement
-              el.style.background = 'var(--cgpt-sidebar-hover)'
-              el.style.color = 'var(--cgpt-text-primary)'
-            }}
-            onMouseLeave={(e) => {
-              const el = e.currentTarget as HTMLButtonElement
-              el.style.background = 'transparent'
-              el.style.color = 'var(--cgpt-text-secondary)'
-            }}
-          >
-            {isDark ? '☀️' : '🌙'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {/* Prompt templates toggle */}
+            <button
+              onClick={() => setShowTemplates((v) => !v)}
+              title={showTemplates ? 'Hide prompt templates' : 'Show prompt templates'}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                border: `1px solid ${showTemplates ? '#2563eb' : 'var(--cgpt-sidebar-border)'}`,
+                background: showTemplates ? 'rgba(37,99,235,0.12)' : 'transparent',
+                color: showTemplates ? '#2563eb' : 'var(--cgpt-text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 15,
+                transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+              }}
+            >
+              ⚡
+            </button>
+
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+              style={{
+                all: 'unset',
+                cursor: 'pointer',
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                border: '1px solid var(--cgpt-sidebar-border)',
+                background: 'transparent',
+                color: 'var(--cgpt-text-secondary)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 17,
+                transition: 'background 0.15s, color 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                const el = e.currentTarget as HTMLButtonElement
+                el.style.background = 'var(--cgpt-sidebar-hover)'
+                el.style.color = 'var(--cgpt-text-primary)'
+              }}
+              onMouseLeave={(e) => {
+                const el = e.currentTarget as HTMLButtonElement
+                el.style.background = 'transparent'
+                el.style.color = 'var(--cgpt-text-secondary)'
+              }}
+            >
+              {isDark ? '☀️' : '🌙'}
+            </button>
+          </div>
         </div>
 
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <ChatWindow />
         </div>
       </div>
+
+      {showTemplates && <PromptTemplatesPanel />}
     </div>
   )
 }
