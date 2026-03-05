@@ -19,6 +19,21 @@ class BackendClient:
     def __init__(self) -> None:
         self.base_url = settings.backend_url.rstrip("/")
         self.timeout = settings.backend_timeout_s
+        # Persistent client for high-frequency push_stream_event calls.
+        # Reusing one connection avoids a TCP handshake (~20 ms) per chunk.
+        self._stream_client: httpx.AsyncClient | None = None
+
+    async def _get_stream_client(self) -> httpx.AsyncClient:
+        if self._stream_client is None or self._stream_client.is_closed:
+            self._stream_client = httpx.AsyncClient(
+                timeout=2.0,
+                limits=httpx.Limits(
+                    max_connections=5,
+                    max_keepalive_connections=5,
+                    keepalive_expiry=30,
+                ),
+            )
+        return self._stream_client
 
     def _headers(self) -> dict[str, str]:
         return {
@@ -158,17 +173,19 @@ class BackendClient:
         Errors are logged at DEBUG level and suppressed so streaming never blocks.
         """
         try:
-            async with httpx.AsyncClient(timeout=2.0) as client:
-                await client.post(
-                    f"{self.base_url}/api/v1/agent/tasks/{task_id}/events",
-                    json={"eventType": event_type, "data": data},
-                    headers=self._headers(),
-                )
+            client = await self._get_stream_client()
+            await client.post(
+                f"{self.base_url}/api/v1/agent/tasks/{task_id}/events",
+                json={"eventType": event_type, "data": data},
+                headers=self._headers(),
+            )
         except Exception as exc:  # noqa: BLE001
             import logging
             logging.getLogger(__name__).debug(
                 "push_stream_event suppressed: %s", exc
             )
+            # Reset so a fresh client is created on the next call
+            self._stream_client = None
 
     async def update_agent_task_status(
         self,

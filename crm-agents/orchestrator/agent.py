@@ -480,7 +480,6 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
         try:
             llm = get_gemini_client()
             chunks: list[str] = []
-            push_tasks: list[asyncio.Task] = []
             async for chunk in llm.generate_stream(
                 user_message=intent,
                 context_snippet=context_snippet,
@@ -490,15 +489,14 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                 research_snippet=research_snippet,
             ):
                 chunks.append(chunk)
-                # Fire-and-forget: push each chunk without blocking the stream
-                push_tasks.append(asyncio.create_task(
-                    backend.push_stream_event(
-                        task.task_id, "agent.message", {"content": chunk}
-                    )
-                ))
-            # Wait for all pushes to complete (most already have by now)
-            if push_tasks:
-                await asyncio.gather(*push_tasks, return_exceptions=True)
+                # Push each chunk immediately — await ensures the SSE event
+                # reaches the UI before we read the next chunk from Gemini.
+                await backend.push_stream_event(
+                    task.task_id, "agent.message", {"content": chunk}
+                )
+                # Yield to the event loop so the SSE write is flushed
+                # to the client socket before the next iteration.
+                await asyncio.sleep(0)
             llm_response = "".join(chunks)
         except ValueError as cfg_err:
             # API key not configured — return a helpful error artifact
