@@ -59,7 +59,7 @@ export function SessionPanel() {
       }
       const session = await sessionApi.create({
         userId: DEMO_USER_ID,
-        agentId: 'IQ Smart Assistant',
+        agentId: 'iQ Smart Assistant',
       })
       setSession(session)
       const conversation = await conversationApi.create(session.sessionId)
