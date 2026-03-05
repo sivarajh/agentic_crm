@@ -84,10 +84,20 @@ ORCHESTRATOR_CARD = AgentCard(
 # ── Web-search intent detector ────────────────────────────────────────────────
 
 _WEB_SEARCH_RE = re.compile(
-    r'\b(search the web|google|web search|internet|online|news|latest news|'
-    r'current events|today|trending|stock price|weather|'
+    r'\b(search the web|google|web search|internet|online|'
+    r'stock price|weather|'
     r'what is|who is|how does|when did|where is|'
-    r'recent developments|latest|breaking)\b',
+    r'trending|breaking)\b',
+    re.I,
+)
+
+_RESEARCH_RE = re.compile(
+    r'\b(news|latest|current events|today|recent|'
+    r'research|analyze|analyse|deep dive|comprehensive|in.?depth|'
+    r'developments|market analysis|trends|'
+    r'report|findings|study|survey|statistics|data on|'
+    r'fact.?check|verify|is it true|what happened|'
+    r'tell me about|explain|overview of|summary of)\b',
     re.I,
 )
 
@@ -346,8 +356,9 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
 
         # Determine whether intent requires real-time web search
         needs_web_search = bool(_WEB_SEARCH_RE.search(intent))
+        needs_research   = bool(_RESEARCH_RE.search(intent))
 
-        context_result, memory_result, raw_history, web_search_result = await asyncio.gather(
+        context_result, memory_result, raw_history, web_search_result, research_result = await asyncio.gather(
             task_manager.delegate(
                 "crm-context-agent",
                 session_id,
@@ -376,6 +387,15 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
             )
             if needs_web_search
             else _empty_list(),
+            # Deep research via Perplexity sonar when intent signals analytical need
+            task_manager.delegate(
+                "crm-news-research-agent",
+                session_id,
+                intent,
+                {**sub_metadata, "skill_id": "research"},
+            )
+            if needs_research
+            else _empty_list(),
             return_exceptions=True,
         )
 
@@ -383,6 +403,7 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
         memory_data = _extract_artifact(memory_result, "semantic_search_results")
         memory_items: list[dict] = memory_data.get("results", [])
         web_search_data = _extract_artifact(web_search_result, "web_search_results") if needs_web_search else {}
+        research_data   = _extract_artifact(research_result, "research_results")   if needs_research   else {}
 
         # Build conversation history for Gemini — exclude the current user
         # turn (it's passed separately as `user_message`).
@@ -398,6 +419,7 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
         span.set_attribute("memory.results_count", len(memory_items))
         span.set_attribute("history.turns_count", len(conversation_history))
         span.set_attribute("web_search.used", needs_web_search)
+        span.set_attribute("research.used", needs_research)
 
         # ── 4. Build context / memory / web-search snippets for the prompt ─
         context_snippet = json.dumps(context_data, indent=2) if context_data else ""
@@ -429,22 +451,55 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
         if needs_web_search:
             span.set_attribute("web_search.results_count", len(web_search_data.get("results", [])))
 
+        # Format Perplexity research as answer + numbered citations
+        research_answer    = research_data.get("answer", "").strip()
+        research_citations = research_data.get("citations", [])
+        research_model     = research_data.get("model", "")
+        research_snippet   = ""
+        if research_answer:
+            citation_lines = [
+                f"[{i}] {url}" for i, url in enumerate(research_citations[:8], start=1)
+            ]
+            citations_block = "\n".join(citation_lines) if citation_lines else ""
+            research_snippet = (
+                f"Research summary (via Perplexity {research_model}):\n"
+                f"{research_answer[:2000]}"
+                + (f"\n\nSources:\n{citations_block}" if citations_block else "")
+            )
+        if needs_research:
+            span.set_attribute("research.answer_len", len(research_answer))
+            span.set_attribute("research.citations_count", len(research_citations))
+
         logger.debug(
-            "Context ready: context_fields=%d memory_items=%d history_turns=%d web_results=%d",
+            "Context ready: context_fields=%d memory_items=%d history_turns=%d web_results=%d research_len=%d",
             len(context_data), len(memory_items), len(conversation_history),
-            len(web_search_data.get("results", [])),
+            len(web_search_data.get("results", [])), len(research_answer) if needs_research else 0,
         )
 
-        # ── 5. LLM: generate CRM response ─────────────────────────────────
+        # ── 5. LLM: generate CRM response (streaming) ─────────────────────
         try:
             llm = get_gemini_client()
-            llm_response = await llm.generate(
+            chunks: list[str] = []
+            push_tasks: list[asyncio.Task] = []
+            async for chunk in llm.generate_stream(
                 user_message=intent,
                 context_snippet=context_snippet,
                 memory_snippet=memory_snippet,
                 conversation_history=conversation_history,
                 web_search_snippet=web_search_snippet,
-            )
+                research_snippet=research_snippet,
+            ):
+                chunks.append(chunk)
+                # Fire-and-forget: push each chunk without blocking the stream
+                push_tasks.append(asyncio.create_task(
+                    backend.push_stream_event(
+                        task.task_id, "agent.message", {"content": chunk}
+                    )
+                ))
+            # Wait for all pushes to complete (most already have by now)
+            if push_tasks:
+                await asyncio.gather(*push_tasks, return_exceptions=True)
+            llm_response = "".join(chunks)
         except ValueError as cfg_err:
             # API key not configured — return a helpful error artifact
             logger.error("LLM not configured: %s", cfg_err)
@@ -596,6 +651,8 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
                     "memory_results_count": len(memory_items),
                     "web_search_used": needs_web_search,
                     "web_search_results_count": len(web_search_data.get("results", [])),
+                    "research_used": needs_research,
+                    "research_citations_count": len(research_citations),
                     "model": settings.gemini_model,
                 },
             ),

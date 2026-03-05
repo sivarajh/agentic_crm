@@ -24,7 +24,7 @@ export function AgentStatusIndicator({ status }: Props) {
         </div>
       )}
       {config.label && (
-        <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)', marginTop: 2 }}>
+        <Text styleAs="label" style={{ color: 'var(--cgpt-text-secondary)', marginTop: 2 }}>
           {config.label}
         </Text>
       )}

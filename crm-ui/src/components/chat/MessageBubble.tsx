@@ -1,5 +1,4 @@
 import React from 'react'
-import { Text, Card, FlexLayout, StackLayout, Pill } from '@salt-ds/core'
 import type { ConversationMessage } from '@/types/conversation'
 import { isA2UIResponse } from '@/types/a2ui'
 import { A2UIRenderer } from '@/a2ui/A2UIRenderer'
@@ -14,20 +13,22 @@ export function MessageBubble({ message, isStreaming }: Props) {
 
   let content: React.ReactNode
 
-  if (!isUser && message.content) {
+  // Only parse A2UI when NOT streaming — during streaming, content is plain
+  // markdown text streamed token by token from Gemini.
+  if (!isUser && message.content && !isStreaming) {
     try {
       const parsed = JSON.parse(message.content)
       if (isA2UIResponse(parsed)) {
         content = <A2UIRenderer components={parsed.components} />
       }
     } catch {
-      // Not JSON — render as plain text
+      // Not JSON — render as plain text below
     }
   }
 
   if (!content) {
     content = (
-      <Text style={{ whiteSpace: 'pre-wrap' }}>
+      <span style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7, fontSize: 15, color: 'var(--cgpt-text-primary)' }}>
         {message.content}
         {isStreaming && (
           <span
@@ -35,48 +36,94 @@ export function MessageBubble({ message, isStreaming }: Props) {
               display: 'inline-block',
               width: 2,
               height: '1em',
-              background: 'currentColor',
-              marginLeft: 2,
+              background: 'var(--cgpt-accent)',
+              marginLeft: 3,
               verticalAlign: 'text-bottom',
               animation: 'pulse 1s infinite',
             }}
           />
         )}
-      </Text>
+      </span>
     )
   }
 
   if (isUser) {
     return (
-      <FlexLayout justify="end" style={{ padding: '2px 0' }}>
+      <div
+        style={{
+          padding: '16px 24px',
+          display: 'flex',
+          justifyContent: 'flex-end',
+        }}
+      >
         <div
           style={{
-            maxWidth: '75%',
-            background: 'var(--salt-palette-interact-primary-background)',
-            color: 'var(--salt-palette-interact-primary-foreground)',
-            borderRadius: 'var(--salt-curve-150)',
+            maxWidth: 600,
+            background: 'var(--cgpt-msg-user-bg)',
+            borderRadius: 18,
             borderBottomRightRadius: 4,
-            padding: 'var(--salt-spacing-100) var(--salt-spacing-200)',
+            padding: '12px 18px',
+            color: 'var(--cgpt-text-primary)',
+            fontSize: 15,
+            lineHeight: 1.7,
           }}
         >
           {content}
         </div>
-      </FlexLayout>
+      </div>
     )
   }
 
+  // Agent message — full-width ChatGPT style with avatar
   return (
-    <FlexLayout justify="start" style={{ padding: '2px 0' }}>
-      <div style={{ maxWidth: '85%' }}>
-        <Card style={{ borderRadius: 'var(--salt-curve-150)', borderBottomLeftRadius: 4 }}>
-          <StackLayout gap={1}>
-            {message.agentId && (
-              <Pill style={{ alignSelf: 'flex-start' }}>{message.agentId}</Pill>
-            )}
-            {content}
-          </StackLayout>
-        </Card>
+    <div
+      style={{
+        padding: '16px 24px',
+        background: 'var(--cgpt-msg-agent-bg)',
+        display: 'flex',
+        gap: 16,
+        alignItems: 'flex-start',
+      }}
+    >
+      {/* Agent avatar */}
+      <div
+        style={{
+          width: 30,
+          height: 30,
+          borderRadius: '50%',
+          background: 'var(--cgpt-accent)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 12,
+          fontWeight: 700,
+          color: '#fff',
+          flexShrink: 0,
+          marginTop: 2,
+        }}
+      >
+        IQ
       </div>
-    </FlexLayout>
+
+      {/* Content */}
+      <div style={{ flex: 1, minWidth: 0, maxWidth: 768 }}>
+        {message.agentId && (
+          <div style={{ marginBottom: 6 }}>
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--cgpt-text-muted)',
+                background: 'var(--cgpt-sidebar-border)',
+                padding: '2px 8px',
+                borderRadius: 10,
+              }}
+            >
+              {message.agentId}
+            </span>
+          </div>
+        )}
+        {content}
+      </div>
+    </div>
   )
 }

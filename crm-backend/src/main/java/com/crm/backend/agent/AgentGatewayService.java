@@ -115,6 +115,23 @@ public class AgentGatewayService {
         return updated;
     }
 
+    // ─── Streaming event push ─────────────────────────────────────────────────
+
+    /**
+     * Called by the orchestrator during LLM streaming to push individual chunk
+     * events directly to the UI's SSE channel for the task's session.
+     */
+    @SneakyThrows
+    public void pushStreamEvent(String taskId, String eventType, Object data) {
+        String raw = redisTemplate.opsForValue().get(TASK_KEY_PREFIX + taskId);
+        if (raw == null) {
+            log.debug("pushStreamEvent: task {} not found", taskId);
+            return;
+        }
+        A2ATask task = objectMapper.readValue(raw, A2ATask.class);
+        streamingEventService.publishEvent(task.getSessionId().toString(), eventType, data);
+    }
+
     // ─── Internal ─────────────────────────────────────────────────────────────
 
     @SneakyThrows

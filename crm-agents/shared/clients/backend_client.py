@@ -145,6 +145,31 @@ class BackendClient:
         except Exception:
             return []
 
+    async def push_stream_event(
+        self,
+        task_id: str,
+        event_type: str,
+        data: dict,
+    ) -> None:
+        """
+        POST /api/v1/agent/tasks/{taskId}/events
+
+        Fire-and-forget: pushes a streaming chunk event to the session SSE channel.
+        Errors are logged at DEBUG level and suppressed so streaming never blocks.
+        """
+        try:
+            async with httpx.AsyncClient(timeout=2.0) as client:
+                await client.post(
+                    f"{self.base_url}/api/v1/agent/tasks/{task_id}/events",
+                    json={"eventType": event_type, "data": data},
+                    headers=self._headers(),
+                )
+        except Exception as exc:  # noqa: BLE001
+            import logging
+            logging.getLogger(__name__).debug(
+                "push_stream_event suppressed: %s", exc
+            )
+
     async def update_agent_task_status(
         self,
         task_id: str,

@@ -14,6 +14,9 @@ services:
       CONTEXT_AGENT_URL: http://crm-context-agent:8003
       GUARDRAILS_URL: http://crm-guardrails:8004
       WEB_SEARCH_AGENT_URL: http://crm-web-search-agent:8005
+      NEWS_RESEARCH_AGENT_URL: http://crm-news-research-agent:8006
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY:-}
+      PERPLEXITY_MODEL: ${PERPLEXITY_MODEL:-sonar-pro}
       REDIS_HOST: crm-redis
       REDIS_PORT: 6379
       OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
@@ -122,6 +125,29 @@ services:
     networks: [crm-net]
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8005/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+    restart: unless-stopped
+  crm-news-research-agent:
+    build:
+      context: .
+      dockerfile: news_research_agent/Dockerfile
+    container_name: crm-news-research-agent
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://crm-otel-collector:4317
+      ENVIRONMENT: local
+      REDIS_HOST: crm-redis
+      REDIS_PORT: 6379
+      # Perplexity API key — get one at https://www.perplexity.ai/settings/api
+      PERPLEXITY_API_KEY: ${PERPLEXITY_API_KEY:-}
+      PERPLEXITY_MODEL: ${PERPLEXITY_MODEL:-sonar-pro}
+    ports:
+      - "8006:8006"
+    networks: [crm-net]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8006/health')\""]
       interval: 10s
       timeout: 5s
       retries: 10

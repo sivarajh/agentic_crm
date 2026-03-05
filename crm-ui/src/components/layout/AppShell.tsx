@@ -1,70 +1,134 @@
 import { useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Text, Pill, FlexLayout, StackLayout } from '@salt-ds/core'
 import { ChatWindow } from '../chat/ChatWindow'
 import { SessionPanel } from './SessionPanel'
-import { useConversationStore } from '@/store'
+import { useConversationStore, useThemeStore } from '@/store'
 
 export function AppShell() {
   const location = useLocation()
   const { setViewingConversation } = useConversationStore()
+  const { theme, toggleTheme } = useThemeStore()
 
-  // Sync URL → store: /conversation/:id sets the viewed conversation, / clears it
+  // Sync URL → store
   useEffect(() => {
     const match = location.pathname.match(/^\/conversation\/(.+)$/)
     setViewingConversation(match ? match[1] : null)
   }, [location.pathname])
+
+  // Apply data-theme attribute to <html> so CSS vars switch
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
+
+  const isDark = theme === 'dark'
+
   return (
-    <FlexLayout direction="row" style={{ height: '100vh', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'row', height: '100vh', overflow: 'hidden', background: 'var(--cgpt-main-bg)' }}>
       {/* Sidebar */}
       <aside
         style={{
           width: 260,
           flexShrink: 0,
-          borderRight: '1px solid var(--salt-separable-borderColor)',
-          background: 'var(--salt-container-primary-background)',
+          background: 'var(--cgpt-sidebar-bg)',
           display: 'flex',
           flexDirection: 'column',
+          borderRight: '1px solid var(--cgpt-sidebar-border)',
         }}
       >
-        <FlexLayout
-          align="center"
-          gap={1}
+        {/* Logo */}
+        <div
           style={{
             height: 56,
-            padding: '0 var(--salt-spacing-200)',
-            borderBottom: '1px solid var(--salt-separable-borderColor)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '0 16px',
+            borderBottom: '1px solid var(--cgpt-sidebar-border)',
             flexShrink: 0,
           }}
         >
-          <Text styleAs="h4" style={{ margin: 0 }}>IQ Smart Assist</Text>
-          <Pill>AI</Pill>
-        </FlexLayout>
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: '50%',
+              background: 'var(--cgpt-accent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              fontWeight: 700,
+              color: '#fff',
+              flexShrink: 0,
+            }}
+          >
+            IQ
+          </div>
+          <span style={{ color: 'var(--cgpt-text-primary)', fontWeight: 600, fontSize: 15 }}>
+            IQ Smart Assist
+          </span>
+        </div>
+
         <SessionPanel />
       </aside>
 
-      {/* Main area */}
-      <StackLayout
-        direction="column"
-        gap={0}
-        style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}
-      >
-        <FlexLayout
-          align="center"
+      {/* Main chat area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+        {/* Top header */}
+        <div
           style={{
             height: 56,
-            padding: '0 var(--salt-spacing-300)',
-            borderBottom: '1px solid var(--salt-separable-borderColor)',
-            background: 'var(--salt-container-primary-background)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 20px',
+            borderBottom: '1px solid var(--cgpt-sidebar-border)',
+            background: 'var(--cgpt-header-bg)',
             flexShrink: 0,
           }}
         >
-          <Text styleAs="h4" style={{ margin: 0 }}>IQ Smart Assistant</Text>
-        </FlexLayout>
+          <span style={{ color: 'var(--cgpt-text-primary)', fontWeight: 600, fontSize: 15 }}>
+            IQ Smart Assistant
+          </span>
+
+          {/* Theme toggle button */}
+          <button
+            onClick={toggleTheme}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            style={{
+              all: 'unset',
+              cursor: 'pointer',
+              width: 36,
+              height: 36,
+              borderRadius: 8,
+              border: '1px solid var(--cgpt-sidebar-border)',
+              background: 'transparent',
+              color: 'var(--cgpt-text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 17,
+              transition: 'background 0.15s, color 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              const el = e.currentTarget as HTMLButtonElement
+              el.style.background = 'var(--cgpt-sidebar-hover)'
+              el.style.color = 'var(--cgpt-text-primary)'
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget as HTMLButtonElement
+              el.style.background = 'transparent'
+              el.style.color = 'var(--cgpt-text-secondary)'
+            }}
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
+        </div>
+
         <div style={{ flex: 1, overflow: 'hidden' }}>
           <ChatWindow />
         </div>
-      </StackLayout>
-    </FlexLayout>
+      </div>
+    </div>
   )
 }

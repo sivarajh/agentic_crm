@@ -8,6 +8,7 @@ by combining the user message with retrieved session context and memories.
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from functools import lru_cache
 
 from google import genai
@@ -217,6 +218,7 @@ class GeminiClient:
         memory_snippet: str = "",
         conversation_history: list[dict] | None = None,
         web_search_snippet: str = "",
+        research_snippet: str = "",
     ) -> str:
         """
         Generate a CRM-aware response.
@@ -227,6 +229,7 @@ class GeminiClient:
             memory_snippet:        Bullet-formatted relevant past memories.
             conversation_history:  Previous turns [{role, content}] (oldest first).
             web_search_snippet:    Formatted live web search results.
+            research_snippet:      Perplexity-grounded research answer with citations.
 
         Returns:
             The model's text response (may be A2UI JSON for CRM entity queries).
@@ -241,6 +244,14 @@ class GeminiClient:
         if memory_snippet:
             system_parts.append(
                 f"\n## Relevant Past Interactions & CRM Data\n{memory_snippet}"
+            )
+        if research_snippet:
+            system_parts.append(
+                "\n## Live Research Results (Perplexity) \u2014 USE THESE TO ANSWER\n"
+                "IMPORTANT: Perplexity has already searched the web and synthesised the answer below. "
+                "You MUST use this research to answer the user question. Cite the sources. "
+                "Do NOT say you lack access \u2014 the research IS your source.\n\n"
+                f"{research_snippet}"
             )
         if web_search_snippet:
             system_parts.append(
@@ -284,12 +295,13 @@ class GeminiClient:
         ]
 
         logger.debug(
-            "Calling Gemini model=%s history_turns=%d context_len=%d memory_len=%d web_search_len=%d",
+            "Calling Gemini model=%s history_turns=%d context_len=%d memory_len=%d web_search_len=%d research_len=%d",
             self._model,
             len(conversation_history or []),
             len(context_snippet),
             len(memory_snippet),
             len(web_search_snippet),
+            len(research_snippet),
         )
 
         response = await self._client.aio.models.generate_content(
@@ -304,6 +316,106 @@ class GeminiClient:
             ),
         )
         return response.text or ""
+
+    async def generate_stream(
+        self,
+        user_message: str,
+        context_snippet: str = "",
+        memory_snippet: str = "",
+        conversation_history: list[dict] | None = None,
+        web_search_snippet: str = "",
+        research_snippet: str = "",
+    ) -> AsyncIterator[str]:
+        """
+        Stream a CRM-aware response chunk by chunk.
+
+        Same arguments as generate(). Yields text chunks as they arrive from
+        the Gemini streaming API. Does NOT set response_mime_type so that
+        streaming works; _ensure_a2ui() in the orchestrator wraps the full
+        accumulated response into valid A2UI JSON.
+        """
+        # Re-use the exact same prompt-building logic as generate()
+        system_parts = [CRM_SYSTEM_PROMPT]
+        if context_snippet:
+            system_parts.append(
+                "\n## Current Session & Customer Context\n"
+                f"```json\n{context_snippet}\n```"
+            )
+        if memory_snippet:
+            system_parts.append(
+                f"\n## Relevant Past Interactions & CRM Data\n{memory_snippet}"
+            )
+        if research_snippet:
+            system_parts.append(
+                "\n## Live Research Results (Perplexity) \u2014 USE THESE TO ANSWER\n"
+                "IMPORTANT: Perplexity has already searched the web and synthesised the answer below. "
+                "You MUST use this research to answer the user question. Cite the sources. "
+                "Do NOT say you lack access \u2014 the research IS your source.\n\n"
+                f"{research_snippet}"
+            )
+        if web_search_snippet:
+            system_parts.append(
+                "\n## Live Web Search Results — USE THESE TO ANSWER\n"
+                "IMPORTANT: The user asked a web search question. You MUST answer it "
+                "using the results below. Do NOT say you lack access to external "
+                "information — these search results are your source. Summarise the key "
+                "findings, include relevant source URLs, and present the answer clearly.\n\n"
+                f"{web_search_snippet}"
+            )
+        # Override the JSON format instruction for streaming so tokens are
+        # readable text as they arrive. The orchestrator's _ensure_a2ui()
+        # wraps the full accumulated response in a markdown component at the end.
+        system_parts.append(
+            "\n## STREAMING MODE — OUTPUT FORMAT OVERRIDE\n"
+            "Ignore the A2UI JSON format instructions above for this response.\n"
+            "Output plain, well-structured Markdown text ONLY — no JSON, no code fences.\n"
+            "Write naturally. Use headings, bullet points, bold, and tables where helpful.\n"
+            "Your text will be rendered as rich Markdown in the UI."
+        )
+        system_instruction = "\n".join(system_parts)
+
+        full_user_message = user_message
+        history = conversation_history or []
+        if history:
+            history_lines: list[str] = []
+            for turn in history[-12:]:
+                role_label = "User" if turn.get("role") == "user" else "Assistant"
+                text = turn.get("content", "").strip()
+                if text:
+                    history_lines.append(f"[{role_label}]: {text}")
+            if history_lines:
+                history_block = "\n".join(history_lines)
+                full_user_message = (
+                    "## Conversation History\n"
+                    "(Use this to resolve references such as 'it', 'its', 'this company', "
+                    "'the deal', 'them', etc. — the active entity is the one most recently "
+                    "mentioned in the history below)\n\n"
+                    f"{history_block}\n\n"
+                    f"## Current Question\n{user_message}"
+                )
+
+        contents: list[types.Content] = [
+            types.Content(role="user", parts=[types.Part(text=full_user_message)])
+        ]
+
+        logger.debug(
+            "Streaming Gemini model=%s history_turns=%d",
+            self._model,
+            len(conversation_history or []),
+        )
+
+        async for chunk in await self._client.aio.models.generate_content_stream(
+            model=self._model,
+            contents=contents,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                temperature=0.3,
+                max_output_tokens=4096,
+                candidate_count=1,
+            ),
+        ):
+            if chunk.text:
+                yield chunk.text
 
 
 @lru_cache(maxsize=1)

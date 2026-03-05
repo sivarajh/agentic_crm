@@ -65,6 +65,20 @@ public class AgentGatewayController {
         return ResponseEntity.ok(ApiResponse.ok(updated));
     }
 
+    /**
+     * Orchestrator pushes streaming chunk events here during LLM generation.
+     * Body: { "eventType": "agent.message", "data": { "content": "..." } }
+     */
+    @PostMapping("/tasks/{taskId}/events")
+    public ResponseEntity<Void> pushTaskEvent(
+            @PathVariable String taskId,
+            @RequestBody Map<String, Object> body) {
+        String eventType = (String) body.getOrDefault("eventType", "agent.message");
+        Object data = body.get("data");
+        agentGatewayService.pushStreamEvent(taskId, eventType, data);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/cards")
     public ResponseEntity<ApiResponse<List<AgentCard>>> listAgentCards() {
         return ResponseEntity.ok(ApiResponse.ok(agentGatewayService.listAgentCards()));

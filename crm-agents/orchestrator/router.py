@@ -39,14 +39,25 @@ _ROUTING_RULES = [
     (re.compile(r'\b(consolidat|summariz|compress)\b', re.I),
      "crm-memory-agent", "consolidate_memory", "sequential"),
 
-    # Web search — real-time information, news, external knowledge
+    # Web search — quick lookups, specific factual queries
     (re.compile(
-        r'\b(search the web|google|web search|internet|online|news|latest news|'
-        r'current events|today|trending|stock price|weather|'
+        r'\b(search the web|google|web search|internet|online|'
+        r'stock price|weather|'
         r'what is|who is|how does|when did|where is|'
-        r'recent developments|latest|breaking)\b',
+        r'trending|breaking)\b',
         re.I,
     ), "crm-web-search-agent", "web_search", "sequential"),
+
+    # News & deep research — Perplexity-grounded research with citations
+    (re.compile(
+        r'\b(news|latest|current events|today|recent|'
+        r'research|analyze|analyse|deep dive|comprehensive|in.?depth|'
+        r'developments|market analysis|trends|'
+        r'report|findings|study|survey|statistics|data on|'
+        r'fact.?check|verify|is it true|what happened|'
+        r'tell me about|explain|overview of|summary of)\b',
+        re.I,
+    ), "crm-news-research-agent", "research", "sequential"),
 ]
 
 _DEFAULT_ROUTE = RouteDecision(

@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react'
-import { Button, FlexLayout } from '@salt-ds/core'
 
 interface Props {
   onSend: (text: string) => void
@@ -7,9 +6,10 @@ interface Props {
   placeholder?: string
 }
 
-export function MessageInput({ onSend, disabled, placeholder = 'Ask the IQ Smart Assistant…' }: Props) {
+export function MessageInput({ onSend, disabled, placeholder = 'Message IQ Smart Assistant…' }: Props) {
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const [focused, setFocused] = useState(false)
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -23,11 +23,27 @@ export function MessageInput({ onSend, disabled, placeholder = 'Ask the IQ Smart
     if (!trimmed || disabled) return
     onSend(trimmed)
     setValue('')
-    textareaRef.current?.focus()
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+      textareaRef.current.focus()
+    }
   }
 
+  const canSend = value.trim().length > 0 && !disabled
+
   return (
-    <FlexLayout align="end" gap={1} style={{ width: '100%' }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        gap: 8,
+        background: 'var(--cgpt-input-bg)',
+        border: `1px solid ${focused ? 'var(--cgpt-input-focused)' : 'var(--cgpt-input-border)'}`,
+        borderRadius: 12,
+        padding: '10px 12px 10px 16px',
+        transition: 'border-color 0.15s',
+      }}
+    >
       <textarea
         ref={textareaRef}
         value={value}
@@ -36,38 +52,60 @@ export function MessageInput({ onSend, disabled, placeholder = 'Ask the IQ Smart
         placeholder={placeholder}
         disabled={disabled}
         rows={1}
-        className="salt-message-input"
-        style={{
-          flex: 1,
-          resize: 'none',
-          minHeight: 40,
-          maxHeight: 128,
-          overflowY: 'auto',
-          padding: 'var(--salt-spacing-100) var(--salt-spacing-150)',
-          border: '1px solid var(--salt-editable-borderColor)',
-          borderRadius: 'var(--salt-curve-100)',
-          fontFamily: 'var(--salt-text-fontFamily)',
-          fontSize: 'var(--salt-text-fontSize)',
-          color: 'var(--salt-content-primary-foreground)',
-          background: 'var(--salt-editable-primary-background)',
-          outline: 'none',
-        }}
-        onFocus={(e) => { e.target.style.borderColor = 'var(--salt-editable-focused-borderColor)' }}
-        onBlur={(e) => { e.target.style.borderColor = 'var(--salt-editable-borderColor)' }}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
         onInput={(e) => {
           const t = e.target as HTMLTextAreaElement
           t.style.height = 'auto'
-          t.style.height = Math.min(t.scrollHeight, 128) + 'px'
+          t.style.height = Math.min(t.scrollHeight, 200) + 'px'
+        }}
+        style={{
+          flex: 1,
+          resize: 'none',
+          minHeight: 24,
+          maxHeight: 200,
+          overflowY: 'auto',
+          border: 'none',
+          outline: 'none',
+          background: 'transparent',
+          color: 'var(--cgpt-text-primary)',
+          fontSize: 15,
+          lineHeight: 1.6,
+          fontFamily: 'inherit',
+          padding: 0,
+          caretColor: 'var(--cgpt-accent)',
         }}
       />
-      <Button
-        appearance="solid"
-        sentiment="accented"
+      {/* Send button — arrow circle like ChatGPT */}
+      <button
         onClick={submit}
-        disabled={disabled || !value.trim()}
+        disabled={!canSend}
+        title="Send message"
+        style={{
+          flexShrink: 0,
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          border: 'none',
+          background: canSend ? 'var(--cgpt-send-btn-bg)' : 'var(--cgpt-sidebar-border)',
+          color: canSend ? 'var(--cgpt-send-btn-fg)' : 'var(--cgpt-text-muted)',
+          cursor: canSend ? 'pointer' : 'not-allowed',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          transition: 'background 0.15s',
+          fontSize: 16,
+          lineHeight: 1,
+        }}
+        onMouseEnter={(e) => {
+          if (canSend) (e.currentTarget as HTMLButtonElement).style.background = 'var(--cgpt-accent-hover)'
+        }}
+        onMouseLeave={(e) => {
+          if (canSend) (e.currentTarget as HTMLButtonElement).style.background = 'var(--cgpt-send-btn-bg)'
+        }}
       >
-        Send
-      </Button>
-    </FlexLayout>
+        ↑
+      </button>
+    </div>
   )
 }

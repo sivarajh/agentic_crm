@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Text, StackLayout, FlexLayout, Divider } from '@salt-ds/core'
 import { useSessionStore, useConversationStore, useAgentStore } from '@/store'
 import { sessionApi } from '@/api/sessionApi'
 import { conversationApi } from '@/api/conversationApi'
@@ -26,7 +25,6 @@ export function SessionPanel() {
   } = useConversationStore()
   const { setAgentStatus, clearStreamingContent } = useAgentStore()
 
-  // Validate persisted session + load full conversation history from backend on mount
   useEffect(() => {
     if (currentSession) {
       sessionApi.get(currentSession.sessionId).then((s) => {
@@ -89,10 +87,7 @@ export function SessionPanel() {
     setIsDeletingId(conversationId)
     try {
       await conversationApi.delete(conversationId)
-      // If we were viewing this conversation, go back to root
-      if (viewingConversationId === conversationId) {
-        navigate('/')
-      }
+      if (viewingConversationId === conversationId) navigate('/')
       removeFromHistory(conversationId)
     } catch (err) {
       console.error('Failed to delete conversation:', err)
@@ -105,191 +100,215 @@ export function SessionPanel() {
   const activeConvId = viewingConversationId ?? currentConversation?.conversationId
 
   return (
-    <StackLayout gap={0} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-      {/* Session controls */}
-      <StackLayout gap={2} style={{ padding: 'var(--salt-spacing-200)', flexShrink: 0 }}>
+    <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      {/* New chat button + session info */}
+      <div style={{ padding: '12px 12px 8px', flexShrink: 0 }}>
+        <button
+          onClick={startNewSession}
+          disabled={isCreating}
+          style={{
+            width: '100%',
+            padding: '10px 14px',
+            borderRadius: 8,
+            border: '1px solid var(--cgpt-sidebar-border)',
+            background: 'transparent',
+            color: 'var(--cgpt-text-primary)',
+            cursor: isCreating ? 'not-allowed' : 'pointer',
+            fontSize: 14,
+            fontWeight: 500,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            transition: 'background 0.15s',
+            opacity: isCreating ? 0.6 : 1,
+          }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'var(--cgpt-sidebar-hover)' }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent' }}
+        >
+          <span style={{ fontSize: 18, lineHeight: 1 }}>+</span>
+          {isCreating ? 'Starting…' : 'New chat'}
+        </button>
+
+        {/* Session indicator */}
         {currentSession && (
-          <div
-            style={{
-              borderRadius: 'var(--salt-curve-100)',
-              background: 'var(--salt-status-positive-background)',
-              border: '1px solid var(--salt-status-positive-borderColor)',
-              padding: 'var(--salt-spacing-100) var(--salt-spacing-150)',
-            }}
-          >
-            <Text styleAs="label" style={{ color: 'var(--salt-status-positive-foreground)', fontWeight: 600 }}>
-              ● Active Session
-            </Text>
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, padding: '4px 4px' }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--cgpt-accent)', flexShrink: 0, display: 'inline-block' }} />
+            <span style={{ fontSize: 11, color: 'var(--cgpt-text-secondary)' }}>Session active</span>
           </div>
         )}
-        <Button appearance="solid" sentiment="accented" onClick={startNewSession} disabled={isCreating} style={{ width: '100%' }}>
-          {isCreating ? 'Starting…' : 'New'}
-        </Button>
-
-        <StackLayout gap={0}>
-          <FlexLayout gap={1}>
-            <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>User:</Text>
-            <Text styleAs="code" style={{ fontSize: '11px' }}>{DEMO_USER_ID}</Text>
-          </FlexLayout>
-          <FlexLayout gap={1}>
-            <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)' }}>Agent:</Text>
-            <Text styleAs="label">IQ Smart Assistant</Text>
-          </FlexLayout>
-        </StackLayout>
-      </StackLayout>
+      </div>
 
       {/* Conversation history */}
       {(conversationHistory.length > 0 || currentConversation) && (
         <>
-          <Divider />
-          <StackLayout gap={1} style={{ padding: 'var(--salt-spacing-100) var(--salt-spacing-200) var(--salt-spacing-100)', flexShrink: 0 }}>
-            <Text styleAs="label" style={{ color: 'var(--salt-content-secondary-foreground)', fontWeight: 600, fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              History
-            </Text>
-          </StackLayout>
-          <div style={{ flex: 1, overflowY: 'auto', padding: '0 var(--salt-spacing-100) var(--salt-spacing-200)' }}>
-            <StackLayout gap={0}>
-              {/* Current conversation */}
-              {currentConversation && (
-                <button
-                  onClick={() => { setViewingConversation(null); navigate('/') }}
-                  style={{
-                    all: 'unset',
-                    display: 'block',
-                    width: '100%',
-                    padding: 'var(--salt-spacing-75) var(--salt-spacing-100)',
-                    borderRadius: 'var(--salt-curve-100)',
-                    cursor: 'pointer',
-                    background: activeConvId === currentConversation.conversationId && viewingConversationId === null
-                      ? 'var(--salt-status-info-background)'
-                      : 'transparent',
-                    border: activeConvId === currentConversation.conversationId && viewingConversationId === null
-                      ? '1px solid var(--salt-status-info-borderColor)'
-                      : '1px solid transparent',
-                    boxSizing: 'border-box',
-                  }}
-                >
-                  <Text styleAs="label" style={{ fontSize: '12px', fontWeight: 600 }}>Current</Text>
-                </button>
-              )}
+          <div style={{ height: 1, background: 'var(--cgpt-sidebar-border)', margin: '4px 12px' }} />
+          <div style={{ padding: '8px 12px 4px', flexShrink: 0 }}>
+            <span style={{ fontSize: 11, color: 'var(--cgpt-text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Conversations
+            </span>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 12px' }}>
+            {/* Current conversation */}
+            {currentConversation && (
+              <button
+                onClick={() => { setViewingConversation(null); navigate('/') }}
+                style={{
+                  all: 'unset',
+                  display: 'block',
+                  width: '100%',
+                  padding: '8px 10px',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  background: activeConvId === currentConversation.conversationId && viewingConversationId === null
+                    ? 'var(--cgpt-sidebar-active)'
+                    : 'transparent',
+                  color: 'var(--cgpt-text-primary)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  boxSizing: 'border-box',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  transition: 'background 0.12s',
+                }}
+                onMouseEnter={(e) => {
+                  if (activeConvId !== currentConversation.conversationId || viewingConversationId !== null)
+                    (e.currentTarget as HTMLButtonElement).style.background = 'var(--cgpt-sidebar-hover)'
+                }}
+                onMouseLeave={(e) => {
+                  if (activeConvId !== currentConversation.conversationId || viewingConversationId !== null)
+                    (e.currentTarget as HTMLButtonElement).style.background = 'transparent'
+                }}
+              >
+                💬 Current chat
+              </button>
+            )}
 
-              {/* Past conversations */}
-              {conversationHistory.map((entry) => {
-                if (entry.conversationId === currentConversation?.conversationId) return null
-                const isViewing = viewingConversationId === entry.conversationId
-                const isConfirming = confirmDeleteId === entry.conversationId
-                const isDeleting = isDeletingId === entry.conversationId
+            {/* Past conversations */}
+            {conversationHistory.map((entry) => {
+              if (entry.conversationId === currentConversation?.conversationId) return null
+              const isViewing = viewingConversationId === entry.conversationId
+              const isConfirming = confirmDeleteId === entry.conversationId
+              const isDeleting = isDeletingId === entry.conversationId
 
+              if (isConfirming) {
                 return (
                   <div
                     key={entry.conversationId}
                     style={{
-                      borderRadius: 'var(--salt-curve-100)',
-                      background: isConfirming
-                        ? 'var(--salt-status-negative-background)'
-                        : isViewing ? 'var(--salt-status-info-background)' : 'transparent',
-                      border: isConfirming
-                        ? '1px solid var(--salt-status-negative-borderColor)'
-                        : isViewing ? '1px solid var(--salt-status-info-borderColor)' : '1px solid transparent',
-                      boxSizing: 'border-box',
+                      borderRadius: 6,
+                      background: 'rgba(239,68,68,0.12)',
+                      border: '1px solid rgba(239,68,68,0.3)',
+                      padding: '8px 10px',
+                      marginBottom: 2,
                     }}
                   >
-                    {isConfirming ? (
-                      /* Confirmation row */
-                      <div style={{ padding: 'var(--salt-spacing-75) var(--salt-spacing-100)', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        <Text styleAs="label" style={{ fontSize: '11px', color: 'var(--salt-status-negative-foreground)' }}>
-                          Delete this conversation?
-                        </Text>
-                        <FlexLayout gap={1}>
-                          <button
-                            onClick={() => confirmDelete(entry.conversationId)}
-                            disabled={isDeleting}
-                            style={{
-                              all: 'unset',
-                              cursor: isDeleting ? 'not-allowed' : 'pointer',
-                              fontSize: '11px',
-                              fontWeight: 600,
-                              padding: '2px 8px',
-                              borderRadius: 'var(--salt-curve-100)',
-                              background: 'var(--salt-status-negative-foreground)',
-                              color: '#fff',
-                            }}
-                          >
-                            {isDeleting ? 'Deleting…' : 'Delete'}
-                          </button>
-                          <button
-                            onClick={() => setConfirmDeleteId(null)}
-                            disabled={isDeleting}
-                            style={{
-                              all: 'unset',
-                              cursor: 'pointer',
-                              fontSize: '11px',
-                              color: 'var(--salt-content-secondary-foreground)',
-                              padding: '2px 8px',
-                            }}
-                          >
-                            Cancel
-                          </button>
-                        </FlexLayout>
-                      </div>
-                    ) : (
-                      /* Normal row */
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--salt-spacing-50)' }}>
-                        <button
-                          onClick={() => navigate(`/conversation/${entry.conversationId}`)}
-                          style={{
-                            all: 'unset',
-                            flex: 1,
-                            padding: 'var(--salt-spacing-75) var(--salt-spacing-100)',
-                            cursor: 'pointer',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <Text styleAs="label" style={{ fontSize: '12px', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {entry.label}
-                          </Text>
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); copyLink(entry.conversationId) }}
-                          title="Copy shareable link"
-                          style={{
-                            all: 'unset',
-                            cursor: 'pointer',
-                            padding: '2px var(--salt-spacing-50)',
-                            color: copiedId === entry.conversationId
-                              ? 'var(--salt-status-positive-foreground)'
-                              : 'var(--salt-content-secondary-foreground)',
-                            fontSize: '12px',
-                            lineHeight: 1,
-                            flexShrink: 0,
-                          }}
-                        >
-                          {copiedId === entry.conversationId ? '✓' : '🔗'}
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(entry.conversationId) }}
-                          title="Delete conversation"
-                          style={{
-                            all: 'unset',
-                            cursor: 'pointer',
-                            padding: '2px var(--salt-spacing-75)',
-                            color: 'var(--salt-content-secondary-foreground)',
-                            fontSize: '12px',
-                            lineHeight: 1,
-                            flexShrink: 0,
-                          }}
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    )}
+                    <div style={{ fontSize: 11, color: 'var(--cgpt-danger)', marginBottom: 6 }}>
+                      Delete this conversation?
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => confirmDelete(entry.conversationId)}
+                        disabled={isDeleting}
+                        style={{
+                          all: 'unset',
+                          cursor: isDeleting ? 'not-allowed' : 'pointer',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: '3px 10px',
+                          borderRadius: 4,
+                          background: 'var(--cgpt-danger)',
+                          color: '#fff',
+                        }}
+                      >
+                        {isDeleting ? 'Deleting…' : 'Delete'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(null)}
+                        disabled={isDeleting}
+                        style={{
+                          all: 'unset',
+                          cursor: 'pointer',
+                          fontSize: 11,
+                          color: 'var(--cgpt-text-secondary)',
+                          padding: '3px 6px',
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
                 )
-              })}
-            </StackLayout>
+              }
+
+              return (
+                <div
+                  key={entry.conversationId}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderRadius: 6,
+                    background: isViewing ? 'var(--cgpt-sidebar-active)' : 'transparent',
+                    marginBottom: 1,
+                    transition: 'background 0.12s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isViewing) (e.currentTarget as HTMLDivElement).style.background = 'var(--cgpt-sidebar-hover)'
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isViewing) (e.currentTarget as HTMLDivElement).style.background = 'transparent'
+                  }}
+                >
+                  <button
+                    onClick={() => navigate(`/conversation/${entry.conversationId}`)}
+                    style={{
+                      all: 'unset',
+                      flex: 1,
+                      padding: '8px 10px',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      color: 'var(--cgpt-text-primary)',
+                      fontSize: 13,
+                    }}
+                  >
+                    <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {entry.label}
+                    </span>
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); copyLink(entry.conversationId) }}
+                    title="Copy shareable link"
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '4px 4px',
+                      color: copiedId === entry.conversationId ? 'var(--cgpt-accent)' : 'var(--cgpt-text-muted)',
+                      fontSize: 13,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {copiedId === entry.conversationId ? '✓' : '🔗'}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(entry.conversationId) }}
+                    title="Delete conversation"
+                    style={{
+                      all: 'unset',
+                      cursor: 'pointer',
+                      padding: '4px 6px',
+                      color: 'var(--cgpt-text-muted)',
+                      fontSize: 12,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </>
       )}
-    </StackLayout>
+    </div>
   )
 }

@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     # Uses the existing GOOGLE_API_KEY. Falls back to DuckDuckGo if not set.
     google_cse_id: str = Field(default="")
 
+    # ─── News & Research (Perplexity) ────────────────────────────────────────
+    # Perplexity API key — get one at https://www.perplexity.ai/settings/api
+    # Models: sonar (fast) | sonar-pro (deep, default) | sonar-deep-research (comprehensive)
+    perplexity_api_key: str = Field(default="")
+    perplexity_model: str = Field(default="sonar-pro")
+    news_research_agent_url: str = Field(default="http://localhost:8006")
+
     # ─── Auth ────────────────────────────────────────────────────────────────
     internal_api_key: str = Field(default="crm-internal-dev-key")
 
