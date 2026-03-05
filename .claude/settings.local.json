@@ -43,7 +43,8 @@
       "Bash(Select-Object FullName)",
       "Bash(git add:*)",
       "Bash(have?\" correctly returns TechNova deal details without re-mentioning:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(npm run build)"
     ]
   }
 }
