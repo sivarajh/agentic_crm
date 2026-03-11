@@ -96,8 +96,7 @@ _RESEARCH_RE = re.compile(
     r'research|analyze|analyse|deep dive|comprehensive|in.?depth|'
     r'developments|market analysis|trends|'
     r'report|findings|study|survey|statistics|data on|'
-    r'fact.?check|verify|is it true|what happened|'
-    r'tell me about|explain|overview of|summary of)\b',
+    r'fact.?check|verify|is it true|what happened)\b',
     re.I,
 )
 
@@ -220,6 +219,7 @@ def _build_gemini_history(raw_messages: list[dict]) -> list[dict]:
 async def _empty_list() -> list:
     """Async no-op that returns an empty list — used as a gather placeholder."""
     return []
+
 
 
 def _ensure_a2ui(text: str) -> str:
@@ -476,28 +476,108 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
             len(web_search_data.get("results", [])), len(research_answer) if needs_research else 0,
         )
 
-        # ── 5. LLM: generate CRM response (streaming) ─────────────────────
+        # ── 5. LLM: generate CRM response ─────────────────────────────────
+        #
+        # Two rendering modes:
+        #   • Research / web-search queries → stream plain Markdown chunks to
+        #     the UI as they arrive; the accumulated text is wrapped in an A2UI
+        #     markdown component at the end so MessageBubble renders it richly.
+        #   • CRM entity queries (customers, deals, contacts, etc.) → single
+        #     structured A2UI JSON response generated in one call; Gemini uses
+        #     rich components (stat_grid, kv_table, contact_chip, …) that are
+        #     meaningless to stream character-by-character.
         try:
             llm = get_gemini_client()
-            chunks: list[str] = []
-            async for chunk in llm.generate_stream(
-                user_message=intent,
-                context_snippet=context_snippet,
-                memory_snippet=memory_snippet,
-                conversation_history=conversation_history,
-                web_search_snippet=web_search_snippet,
-                research_snippet=research_snippet,
-            ):
-                chunks.append(chunk)
-                # Push each chunk immediately — await ensures the SSE event
-                # reaches the UI before we read the next chunk from Gemini.
-                await backend.push_stream_event(
-                    task.task_id, "agent.message", {"content": chunk}
+
+            if needs_research or needs_web_search:
+                # ── Streaming Markdown path ────────────────────────────────
+                chunks: list[str] = []
+                async for chunk in llm.generate_stream(
+                    user_message=intent,
+                    context_snippet=context_snippet,
+                    memory_snippet=memory_snippet,
+                    conversation_history=conversation_history,
+                    web_search_snippet=web_search_snippet,
+                    research_snippet=research_snippet,
+                ):
+                    chunks.append(chunk)
+                    # Push immediately so each token appears in the UI
+                    # before the next chunk is read from Gemini.
+                    await backend.push_stream_event(
+                        task.task_id, "agent.message", {"content": chunk}
+                    )
+                    await asyncio.sleep(0)  # yield so SSE is flushed
+                llm_response_text = "".join(chunks)
+
+                # Build structured citations for the Sources drawer in the UI.
+                # Research citations are bare URLs; web results have title + URL.
+                structured_citations: list[dict] = []
+                if needs_research:
+                    from urllib.parse import urlparse as _urlparse
+                    for url in research_citations[:10]:
+                        url = url.strip()
+                        if url:
+                            try:
+                                domain = _urlparse(url).netloc or url
+                            except Exception:
+                                domain = url
+                            structured_citations.append({"title": domain, "url": url})
+                if needs_web_search:
+                    for r in web_search_data.get("results", [])[:8]:
+                        title = (r.get("title") or "").strip() or "Link"
+                        url = (r.get("url") or "").strip()
+                        if url:
+                            structured_citations.append({"title": title, "url": url})
+
+                # Gemini sometimes ignores the streaming markdown instruction and
+                # returns A2UI JSON directly. Detect this and use it as-is rather
+                # than wrapping the raw JSON as markdown text content.
+                try:
+                    _stripped = llm_response_text.strip()
+                    # Strip accidental markdown fences first
+                    import re as _re
+                    _fence = _re.search(r"```(?:json)?\s*([\s\S]*?)```", _stripped)
+                    if _fence:
+                        _stripped = _fence.group(1).strip()
+                    _candidate = json.loads(_stripped)
+                    if (
+                        isinstance(_candidate, dict)
+                        and "schema_version" in _candidate
+                        and "components" in _candidate
+                    ):
+                        # Already valid A2UI — use directly
+                        a2ui_obj: dict = _candidate
+                    else:
+                        raise ValueError("not A2UI")
+                except (json.JSONDecodeError, ValueError):
+                    # Plain markdown — wrap in markdown component
+                    a2ui_obj = {
+                        "schema_version": "0.8",
+                        "components": [{"type": "markdown", "content": llm_response_text}],
+                    }
+
+                # Attach citations only if not already present in the A2UI
+                if structured_citations and "citations" not in a2ui_obj:
+                    a2ui_obj["citations"] = structured_citations
+                llm_response = json.dumps(a2ui_obj)
+            else:
+                # ── Structured A2UI path ───────────────────────────────────
+                llm_response = await llm.generate(
+                    user_message=intent,
+                    context_snippet=context_snippet,
+                    memory_snippet=memory_snippet,
+                    conversation_history=conversation_history,
                 )
-                # Yield to the event loop so the SSE write is flushed
-                # to the client socket before the next iteration.
-                await asyncio.sleep(0)
-            llm_response = "".join(chunks)
+                # Strip any citations Gemini may have added in the CRM path.
+                # Citations are only valid for web/research responses where we
+                # build them explicitly from Perplexity/web-search data.
+                try:
+                    _crm_parsed = json.loads(llm_response)
+                    if "citations" in _crm_parsed:
+                        del _crm_parsed["citations"]
+                        llm_response = json.dumps(_crm_parsed)
+                except Exception:
+                    pass
         except ValueError as cfg_err:
             # API key not configured — return a helpful error artifact
             logger.error("LLM not configured: %s", cfg_err)
@@ -532,8 +612,30 @@ async def handle_task(task: A2ATask) -> list[A2AArtifact]:
         span.set_attribute("llm.response_length", len(llm_response))
 
         # ── 5b. Ensure response is A2UI JSON (fallback wrapper) ───────────
-        # If Gemini ignored the JSON instruction, wrap the plain text in A2UI
+        # If Gemini ignored the JSON instruction, wrap the plain text in A2UI.
+        # For the streaming path llm_response is already valid A2UI, so this
+        # is a no-op; for the CRM path it normalises Gemini's output.
         llm_response = _ensure_a2ui(llm_response)
+
+        # ── 5c. Generate follow-up questions and inject into A2UI ──────────
+        # Run a fast secondary Gemini call to suggest 3–4 next questions.
+        # These are embedded in the A2UI JSON so the UI can render clickable
+        # chips without any extra network roundtrip from the browser.
+        try:
+            # Extract plain text from A2UI JSON so Gemini gets readable context
+            # (not raw JSON) when generating follow-up questions.
+            response_text_preview = _extract_text_from_a2ui(llm_response)
+            follow_ups = await llm.generate_follow_ups(
+                intent=intent,
+                response_preview=response_text_preview,
+            )
+            if follow_ups:
+                parsed_a2ui = json.loads(llm_response)
+                parsed_a2ui["follow_ups"] = follow_ups
+                llm_response = json.dumps(parsed_a2ui)
+                logger.debug("Follow-ups injected: %s", follow_ups)
+        except Exception as fu_err:
+            logger.warning("Follow-up generation skipped: %s", fu_err)
 
         # ── 6. Output guardrails (PII redaction) ──────────────────────────
         output_check = await guardrails.validate_output(

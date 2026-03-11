@@ -113,7 +113,57 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
     // ── text ─────────────────────────────────────────────────────────────────
 
     case 'text':
-      return <Text>{content}</Text>
+      return (
+        <div className="a2ui-markdown a2ui-text">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{
+              // Render paragraph as inline span to avoid extra block spacing
+              p: ({ children }) => <span style={{ lineHeight: 1.6, display: 'block' }}>{children}</span>,
+              h1: ({ children }) => <Text styleAs="h1" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              h2: ({ children }) => <Text styleAs="h2" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              h3: ({ children }) => <Text styleAs="h3" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              h4: ({ children }) => <Text styleAs="h4" style={{ margin: '0.5em 0 0.25em' }}>{children}</Text>,
+              a: ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer"
+                  style={{ color: 'var(--salt-status-info-foreground)', textDecoration: 'underline' }}>
+                  {children}
+                </a>
+              ),
+              code: ({ children, className }) => {
+                const isBlock = className?.startsWith('language-')
+                return isBlock ? (
+                  <pre style={{
+                    background: 'var(--salt-container-secondary-background)',
+                    border: '1px solid var(--salt-separable-borderColor)',
+                    borderRadius: 'var(--salt-curve-100)',
+                    padding: 'var(--salt-spacing-150)',
+                    overflowX: 'auto',
+                    margin: '0.5em 0',
+                  }}>
+                    <code style={{ fontFamily: 'var(--salt-text-code-fontFamily)', fontSize: 13 }}>{children}</code>
+                  </pre>
+                ) : (
+                  <code style={{
+                    fontFamily: 'var(--salt-text-code-fontFamily)',
+                    fontSize: 13,
+                    background: 'var(--salt-container-secondary-background)',
+                    borderRadius: 3,
+                    padding: '1px 5px',
+                  }}>{children}</code>
+                )
+              },
+              ul: ({ children }) => <ul style={{ paddingLeft: '1.5em', margin: '0.25em 0', lineHeight: 1.7 }}>{children}</ul>,
+              ol: ({ children }) => <ol style={{ paddingLeft: '1.5em', margin: '0.25em 0', lineHeight: 1.7 }}>{children}</ol>,
+              li: ({ children }) => <li style={{ marginBottom: 2 }}>{children}</li>,
+              strong: ({ children }) => <strong style={{ fontWeight: 700 }}>{children}</strong>,
+              em: ({ children }) => <em>{children}</em>,
+            }}
+          >
+            {String(content ?? '')}
+          </ReactMarkdown>
+        </div>
+      )
 
     // ── markdown ─────────────────────────────────────────────────────────────
 
@@ -310,7 +360,9 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
                       key={j}
                       style={{ padding: 'var(--salt-spacing-100) var(--salt-spacing-200)' }}
                     >
-                      <Text>{cell}</Text>
+                      <span style={{ fontSize: 'var(--salt-text-fontSize)', color: 'var(--salt-content-primary-foreground)' }}>
+                        {cell}
+                      </span>
                     </td>
                   ))}
                 </tr>
@@ -486,18 +538,22 @@ function A2UIComponentRenderer({ component }: { component: A2UIComponent }) {
               >
                 {row.key}
               </Text>
-              <FlexLayout align="center" gap={1} style={{ minWidth: 0 }}>
-                <Text
+              <FlexLayout align="center" gap={1} style={{ minWidth: 0, overflow: 'hidden' }}>
+                <span
+                  title={row.value}
                   style={{
                     fontFamily: row.monospace ? 'var(--salt-text-code-fontFamily)' : undefined,
-                    fontSize: row.monospace ? 11 : undefined,
+                    fontSize: row.monospace ? 11 : 'var(--salt-text-fontSize)',
+                    color: 'var(--salt-content-primary-foreground)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
+                    minWidth: 0,
+                    flex: 1,
                   }}
                 >
                   {row.value}
-                </Text>
+                </span>
                 {row.badge && (
                   <StatusBadge text={row.badge.text} color={row.badge.color ?? 'gray'} />
                 )}

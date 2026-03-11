@@ -310,7 +310,7 @@ class GeminiClient:
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.3,
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 candidate_count=1,
                 response_mime_type="application/json",
             ),
@@ -410,12 +410,98 @@ class GeminiClient:
             config=types.GenerateContentConfig(
                 system_instruction=system_instruction,
                 temperature=0.3,
-                max_output_tokens=4096,
+                max_output_tokens=8192,
                 candidate_count=1,
             ),
         ):
             if chunk.text:
                 yield chunk.text
+
+
+    async def generate_follow_ups(
+        self,
+        intent: str,
+        response_preview: str = "",
+    ) -> list[str]:
+        """
+        Generate 3–4 concise follow-up questions relevant to the current turn.
+
+        Runs as a fast, low-token call so latency impact is minimal.
+        Returns a list of question strings (empty list on any failure).
+        """
+        context = f"User asked: {intent}"
+        if response_preview:
+            context += f"\n\nAssistant answered: {response_preview[:600]}"
+
+        prompt = (
+            f"{context}\n\n"
+            "Generate exactly 3 short follow-up questions the user might want to ask next, "
+            "relevant to commercial banking or CRM context.\n"
+            "Format your response as a JSON array of strings, like this:\n"
+            '["Question one?", "Question two?", "Question three?"]\n'
+            "Output ONLY the JSON array, nothing else."
+        )
+
+        try:
+            response = await self._client.aio.models.generate_content(
+                model=self._model,
+                contents=[types.Content(role="user", parts=[types.Part(text=prompt)])],
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    max_output_tokens=1024,
+                    candidate_count=1,
+                ),
+            )
+            text = (response.text or "").strip()
+
+            import json as _json, re as _re
+
+            # Strip markdown fences if present
+            fence = _re.search(r"```(?:json)?\s*([\s\S]*?)```", text)
+            if fence:
+                text = fence.group(1).strip()
+
+            def _clean(q: str) -> str:
+                """Strip surrounding quotes, bullets, numbers Gemini may add."""
+                q = q.strip().strip('"\'')
+                q = _re.sub(r'^[\s\d\.\-\*\•\–]+', '', q).strip()
+                return q
+
+            def _is_complete(q: str) -> bool:
+                """Reject short fragments and strings that end mid-phrase."""
+                if len(q) < 20:
+                    return False
+                last_word = q.rstrip('.,!?').rsplit(None, 1)[-1].lower()
+                return last_word not in ('of', 'the', 'a', 'an', 'in', 'for', 'to', 'and', 'or')
+
+            # Primary: try to parse a complete JSON array
+            arr_match = _re.search(r'\[[\s\S]*?\]', text)
+            if arr_match:
+                try:
+                    parsed = _json.loads(arr_match.group(0))
+                    if isinstance(parsed, list):
+                        questions = [_clean(str(q)) for q in parsed if str(q).strip()]
+                        result = [q for q in questions if _is_complete(q)][:3]
+                        if result:
+                            return result
+                except (_json.JSONDecodeError, ValueError):
+                    pass
+
+            # Fallback: extract all complete quoted strings from the text.
+            # This handles truncated JSON arrays where the closing ] is missing.
+            quoted = _re.findall(r'"((?:[^"\\]|\\.)*)"', text)
+            if quoted:
+                questions = [_clean(q) for q in quoted if q.strip()]
+                result = [q for q in questions if _is_complete(q)][:3]
+                if result:
+                    return result
+
+            # Last resort: split by newlines
+            questions = [_clean(line) for line in text.splitlines() if line.strip()]
+            return [q for q in questions if _is_complete(q)][:3]
+        except Exception as exc:
+            logger.debug("generate_follow_ups failed: %s", exc)
+            return []
 
 
 @lru_cache(maxsize=1)

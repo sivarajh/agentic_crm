@@ -114,7 +114,10 @@ export function AppShell() {
                 transition: 'background 0.15s, color 0.15s, border-color 0.15s',
               }}
             >
-              ⚡
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+                stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 1 4 9h4l-1 6 6-8H9l1-6Z" />
+              </svg>
             </button>
 
             {/* Theme toggle */}
@@ -147,7 +150,18 @@ export function AppShell() {
                 el.style.color = 'var(--cgpt-text-secondary)'
               }}
             >
-              {isDark ? '☀️' : '🌙'}
+              {isDark ? (
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+                  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="8" cy="8" r="3" />
+                  <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.05 3.05l1.41 1.41M11.54 11.54l1.41 1.41M3.05 12.95l1.41-1.41M11.54 4.46l1.41-1.41" />
+                </svg>
+              ) : (
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none"
+                  stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M13.5 9.5A6 6 0 0 1 6.5 2.5a6 6 0 1 0 7 7Z" />
+                </svg>
+              )}
             </button>
           </div>
         </div>

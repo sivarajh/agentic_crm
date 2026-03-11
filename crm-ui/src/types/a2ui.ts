@@ -46,9 +46,16 @@ export interface KVRow {
   monospace?: boolean
 }
 
+export interface A2UICitation {
+  title: string
+  url: string
+}
+
 export interface A2UIResponse {
   schema_version: string   // "0.8"
   components: A2UIComponent[]
+  citations?: A2UICitation[]
+  follow_ups?: string[]
   metadata?: Record<string, unknown>
 }
 
