@@ -117,6 +117,58 @@ export const useConversationStore = create<ConversationStore>()(
   )
 )
 
+// ─── Project Store ────────────────────────────────────────────────────────────
+
+export interface Project {
+  projectId: string
+  name: string
+  createdAt: string
+  updatedAt?: string
+}
+
+interface ProjectStore {
+  projects: Project[]
+  conversationProjects: Record<string, string>  // conversationId -> projectId (in-memory cache)
+  setProjects: (projects: Project[]) => void
+  addProject: (project: Project) => void
+  removeProject: (projectId: string) => void
+  updateProject: (project: Project) => void
+  setConversationProject: (conversationId: string, projectId: string | null) => void
+}
+
+export const useProjectStore = create<ProjectStore>()(
+  immer((set) => ({
+    projects: [],
+    conversationProjects: {},
+    setProjects: (projects) =>
+      set((state) => { state.projects = projects }),
+    addProject: (project) =>
+      set((state) => { state.projects.push(project) }),
+    removeProject: (projectId) =>
+      set((state) => {
+        state.projects = state.projects.filter((p) => p.projectId !== projectId)
+        Object.keys(state.conversationProjects).forEach((convId) => {
+          if (state.conversationProjects[convId] === projectId) {
+            delete state.conversationProjects[convId]
+          }
+        })
+      }),
+    updateProject: (project) =>
+      set((state) => {
+        const idx = state.projects.findIndex((p) => p.projectId === project.projectId)
+        if (idx !== -1) state.projects[idx] = project
+      }),
+    setConversationProject: (conversationId, projectId) =>
+      set((state) => {
+        if (projectId === null) {
+          delete state.conversationProjects[conversationId]
+        } else {
+          state.conversationProjects[conversationId] = projectId
+        }
+      }),
+  }))
+)
+
 // ─── Theme Store ──────────────────────────────────────────────────────────────
 
 interface ThemeStore {

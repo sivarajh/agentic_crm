@@ -18,6 +18,7 @@ export interface ConversationMessage {
 export interface Conversation {
   conversationId: string
   sessionId: string
+  projectId: string | null
   title: string | null
   metadata: Record<string, unknown>
   createdAt: string

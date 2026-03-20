@@ -35,6 +35,9 @@ public class Conversation {
     @Builder.Default
     private Map<String, Object> metadata = new HashMap<>();
 
+    @Column(name = "project_id")
+    private UUID projectId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
